@@ -7,7 +7,7 @@ QEMU = qemu-system-i386
 
 # --- Файлы и Пути ---
 # Явно указываем, что объектные файлы будут в подпапке src/
-OBJECTS      = src/entry.o src/kernel.o src/asm_io.o src/idt.o src/isr.o
+OBJECTS      = src/entry.o src/kernel.o src/asm_io.o src/idt.o src/isr.o src/vga.o src/timer.o src/pmm.o src/vmm.o src/string.o
 LINKER_SCRIPT = linker.ld
 KERNEL_BIN   = kernel.bin
 GRUB_CFG     = src/iso_root/grub/grub.cfg
@@ -24,6 +24,8 @@ $(KERNEL_BIN): $(OBJECTS) $(LINKER_SCRIPT)
 	@echo "-> Линковка: Создание $@"
 	$(LD) -T $(LINKER_SCRIPT) -o $@ $(OBJECTS)
 # --- Правила Компиляции (с явным указанием пути src/) ---
+src/vga.o: src/vga.c
+	$(CC) $(CFLAGS) -c $< -o $@
 
 # Правило для C: src/kernel.c -> src/kernel.o
 src/%.o: src/%.c

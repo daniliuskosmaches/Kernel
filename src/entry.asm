@@ -16,6 +16,15 @@ global _start
 extern kmain  ; Объявляем, что kmain() будет функцией на C
 
 _start:
+; Передача аргументов в kmain:
+    ; kmain(multiboot_magic, multiboot_info_t *mbi)
+
+    push ebx    ; push mbi (второй аргумент)
+    push eax    ; push multiboot_magic (первый аргумент)
+
+    call kmain
+
+    add esp, 8  ; Очистка стека
     ; 1. Настройка Стека
     ; Мы устанавливаем указатель стека (ESP) на конец зарезервированного нами блока
     mov esp, stack_top

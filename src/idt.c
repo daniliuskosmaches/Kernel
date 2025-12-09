@@ -22,6 +22,8 @@ struct idt_ptr idtp;
 // ----------------------------------------------------
 extern void isr_irq0(void);
 extern void isr_irq1(void);
+extern void terminal_put_char(char c);
+extern void timer_handler(struct registers *regs);
 // -----------------------------------------------------------------
 
 // Глобальная таблица IDT (256 записей)
@@ -100,7 +102,81 @@ void idt_install(void) {
     // (ВАЖНО: Активация прерываний "sti" должна быть в kmain, а не здесь.)
 }
 
+char kbd_us[128] =
+{
+    0,   27, '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-', '=', '\b',
+  '\t', /* 0x0F - Tab */
+  'q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p', '[', ']', '\n', /* 0x1C - Enter */
+    0, /* 0x1D - Left Ctrl */
+  'a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l', ';', '\'', '`',
+    0, /* 0x2A - Left Shift */
+ '\\', 'z', 'x', 'c', 'v', 'b', 'n', 'm', ',', '.', '/',
+    0, /* 0x36 - Right Shift */
+    '*',
+    0, /* 0x38 - Left Alt */
+  ' ', /* 0x39 - Spacebar */
+    0, /* 0x3A - Caps Lock */
+    0, /* 0x3B - F1 */
+    0, /* 0x3C - F2 */
+    0,
+    0,
+    0,
+    0,
+    0,
+    0, /* 0x43 - F9 */
+    0, /* 0x44 - F10 */
+    0, /* 0x45 - Num Lock */
+    0, /* 0x46 - Scroll Lock */
+    '7', /* 0x47 - Keypad 7 */
+    '8', /* 0x47 - Keypad 8 */
+    '9', /* 0x47 - Keypad 9 */
+    '-', /* 0x4A - Keypad - */
+    '4', /* 0x4B - Keypad 4 */
+    '5', /* 0x4C - Keypad 5 */
+    '6', /* 0x4D - Keypad 6 */
+    '+', /* 0x4E - Keypad + */
+    '1', /* 0x4F - Keypad 1 */
+    '2', /* 0x50 - Keypad 2 */
+    '3', /* 0x51 - Keypad 3 */
+    '0', /* 0x52 - Keypad 0 */
+    '.', /* 0x53 - Keypad . */
+    0,
+    0,
+    0, /* 0x57 - F11 */
+    0, /* 0x58 - F12 */
+};
+
+void keyboard_handler(void) {
+    // 1. Считываем скан-код из порта данных клавиатуры (0x60)
+    unsigned char scancode = inb(0x60);
+
+    // 2. Проверяем, была ли клавиша НАЖАТА (Scancode < 0x80)
+    if (scancode < 128) {
+        // 3. Преобразуем скан-код в ASCII
+        char c = kbd_us[scancode];
+
+        // 4. Выводим символ, если он действителен (не 0)
+        if (c != 0) {
+            terminal_put_char(c);
+        }
+    }
+}
+
 void isr_handler_c(struct registers *regs) {
+    if (regs->int_no == 0x20) {
+        timer_handler(regs);
+    }
+    if (regs->int_no == 0x21) {
+        keyboard_handler();
+    }
+
+    // 2. Отправляем EOI на PIC
+    if (regs->int_no >= 0x20 && regs->int_no <= 0x2F) {
+        if (regs->int_no >= 0x28) {
+            outb(0xA0, 0x20); // Slave PIC
+        }
+        outb(0x20, 0x20); // Master PIC
+    }
     // Внимание: Вам нужно будет определить структуру 'registers' позже!
 
     // Для начала, просто выведем символ, если это прерывание от PIC
@@ -115,3 +191,4 @@ void isr_handler_c(struct registers *regs) {
         outb(0x20, 0x20); // Master PIC
     }
 }
+

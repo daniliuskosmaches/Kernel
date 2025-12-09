@@ -3,9 +3,32 @@
 // Главная функция, вызываемая из entry.asm
 #include "system.h"
 #include "idt.h"
+#include "multiboot.h"
 
-void kmain(void)
+extern void pmm_init(multiboot_info_t *mbi);
+extern void timer_install(unsigned long freq);
+
+void kmain(unsigned int multiboot_magic, multiboot_info_t *mbi)
 {
+    if (multiboot_magic != MULTIBOOT_BOOTLOADER_MAGIC) {
+
+        return;
+    }
+
+    // Проверка, что есть карта памяти
+    if (!(mbi->flags & MULTIBOOT_FLAG_MMAP)) {
+
+        return;
+    }
+
+
+
+
+    // 2. Настройка Таймера
+    timer_install(100); // Устанавливаем частоту 100 Гц
+
+    // 3. Включаем прерывания (КРИТИЧНО)
+    __asm__ __volatile__ ("sti");
 
     // Для начала, просто выведем символ, если это прерывание от PIC
     idt_install();
@@ -24,8 +47,10 @@ void kmain(void)
     vga[2] = 'K';
     vga[3] = 0x02;
 
+
     // Бесконечный цикл: ядро должно работать вечно
     while (1) {
         ;
     }
 }
+

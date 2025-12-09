@@ -7,7 +7,7 @@ QEMU = qemu-system-i386
 
 # --- Файлы и Пути ---
 # Явно указываем, что объектные файлы будут в подпапке src/
-OBJECTS      = src/entry.o src/kernel.o
+OBJECTS      = src/entry.o src/kernel.o src/asm_io.o src/idt.o src/isr.o
 LINKER_SCRIPT = linker.ld
 KERNEL_BIN   = kernel.bin
 GRUB_CFG     = src/iso_root/grub/grub.cfg
@@ -18,11 +18,11 @@ GRUB_CFG     = src/iso_root/grub/grub.cfg
 
 all: $(KERNEL_BIN) iso
 
-# Компоновка: Зависит от всех объектных файлов и скрипта линковщика
+
+
 $(KERNEL_BIN): $(OBJECTS) $(LINKER_SCRIPT)
 	@echo "-> Линковка: Создание $@"
 	$(LD) -T $(LINKER_SCRIPT) -o $@ $(OBJECTS)
-
 # --- Правила Компиляции (с явным указанием пути src/) ---
 
 # Правило для C: src/kernel.c -> src/kernel.o

@@ -1,8 +1,16 @@
 // src/kernel.c
 
 // Главная функция, вызываемая из entry.asm
+#include "system.h"
+#include "idt.h"
+#include "idt.c"
 void kmain(void)
 {
+
+    // Для начала, просто выведем символ, если это прерывание от PIC
+    idt_install();
+
+    asm volatile("sti");
     // Адрес буфера VGA text mode. Ядро пишет прямо сюда.
     unsigned char *vga = (unsigned char *)0xB8000;
 

@@ -1,0 +1,112 @@
+// src/idt.c
+
+#include "idt.h"
+
+
+// Глобальная таблица IDT (256 записей)
+struct idt_entry idt[256];
+struct idt_ptr idtp;
+
+// Селектор сегмента кода.
+// В Multiboot это обычно 0x08, но нужно проверить ваш linker.ld.
+#define KERNEL_CS 0x08
+
+// Порты I/O для главного и подчиненного PIC
+#define PIC1_COMMAND 0x20
+#define PIC1_DATA 0x21
+#define PIC2_COMMAND 0xA0
+#define PIC2_DATA 0xA1
+
+// ----------------------------------------------------
+// 1. Функция для заполнения одного дескриптора IDT
+// ----------------------------------------------------
+extern void isr_irq0(void);
+extern void isr_irq1(void);
+// -----------------------------------------------------------------
+
+// Глобальная таблица IDT (256 записей)
+struct idt_entry idt[256];
+struct idt_ptr idtp;
+
+void idt_set_gate(unsigned char num, unsigned long base, unsigned short sel, unsigned char flags) {
+    idt[num].base_low  = (base & 0xFFFF);
+    idt[num].base_high = (base >> 16) & 0xFFFF;
+    idt[num].selector = sel;
+    idt[num].zero     = 0;
+    // Флаги: P=1 (присутствует), DPL=0 (Ring 0), S=0 (гейт прерывания), Type=1110b (32-бит)
+    idt[num].flags    = flags;
+}
+
+// ----------------------------------------------------
+// 2. Функция для переназначения PIC
+// ----------------------------------------------------
+void pic_remap(int offset1, int offset2) {
+    unsigned char a1, a2;
+
+    // Сохраняем текущие маски
+    a1 = inb(PIC1_DATA);
+    a2 = inb(PIC2_DATA);
+
+    // ICW1: Начало инициализации (Cascade mode)
+    outb(PIC1_COMMAND, 0x11);
+    outb(PIC2_COMMAND, 0x11);
+
+    // ICW2: Сдвиг векторов (Critical step!)
+    // Master PIC (IRQ 0-7) начинается с вектора 0x20 (32)
+    outb(PIC1_DATA, offset1);
+    // Slave PIC (IRQ 8-15) начинается с вектора 0x28 (40)
+    outb(PIC2_DATA, offset2);
+
+    // ICW3: Соединение PIC (Master - Slave)
+    outb(PIC1_DATA, 0x04); // Slave соединен с IRQ 2 (0000 0100b)
+    outb(PIC2_DATA, 0x02); // ID Slave'а (0000 0010b)
+
+    // ICW4: Режим работы (8086 mode)
+    outb(PIC1_DATA, 0x01);
+    outb(PIC2_DATA, 0x01);
+
+    // Восстанавливаем сохраненные маски
+    outb(PIC1_DATA, a1);
+    outb(PIC2_DATA, a2);
+}
+
+// ----------------------------------------------------
+// 3. Главная функция установки IDT
+// ----------------------------------------------------
+void idt_install(void) {
+    // Установка обработчика для Таймера (IRQ 0 -> 0x20)
+    idt_set_gate(0x20, (unsigned int)isr_irq0, KERNEL_CS, 0x8E);
+
+    // Установка обработчика для Клавиатуры (IRQ 1 -> 0x21)
+    idt_set_gate(0x21, (unsigned int)isr_irq1, KERNEL_CS, 0x8E);
+    // 1. Устанавливаем указатель IDTP
+    idtp.limit = (sizeof(struct idt_entry) * 256) - 1;
+    idtp.base = (unsigned int)&idt;
+    struct idt_entry idt[256];
+
+    // 2. Переназначаем PIC (IRQ 0-7 -> 0x20-0x27, IRQ 8-15 -> 0x28-0x2F)
+    pic_remap(0x20, 0x28);
+
+    // 3. Заполняем все 256 дескрипторов нулями (или заглушками)
+    // Мы заполним их позже, а пока просто чистим.
+    // ...
+
+    // 4. Загружаем IDT в процессор (вызов функции Ассемблера)
+    lidt((void*)&idtp);
+}
+
+void isr_handler_c(struct registers *regs) {
+    // Внимание: Вам нужно будет определить структуру 'registers' позже!
+
+    // Для начала, просто выведем символ, если это прерывание от PIC
+    if (regs->int_no >= 0x20 && regs->int_no <= 0x2F) {
+        // Здесь будет наш обработчик клавиатуры/таймера
+
+        // Отправка EOI (End of Interrupt) на PIC (ОЧЕНЬ ВАЖНО!)
+        // Без этого PIC не будет генерировать новые прерывания.
+        if (regs->int_no >= 0x28) {
+            outb(0xA0, 0x20); // Slave PIC
+        }
+        outb(0x20, 0x20); // Master PIC
+    }
+}

@@ -1,4 +1,4 @@
-; src/boot.asm
+; src/entry.asm
 
 section .multiboot
 

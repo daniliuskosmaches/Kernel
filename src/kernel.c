@@ -3,7 +3,7 @@
 // Главная функция, вызываемая из entry.asm
 #include "system.h"
 #include "idt.h"
-#include "idt.c"
+
 void kmain(void)
 {
 

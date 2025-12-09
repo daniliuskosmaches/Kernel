@@ -4,7 +4,7 @@
 
 
 // Глобальная таблица IDT (256 записей)
-struct idt_entry idt[256];
+
 struct idt_ptr idtp;
 
 // Селектор сегмента кода.
@@ -74,25 +74,30 @@ void pic_remap(int offset1, int offset2) {
 // 3. Главная функция установки IDT
 // ----------------------------------------------------
 void idt_install(void) {
+    // 1. Устанавливаем указатель IDTP (Limit и Base)
+    idtp.limit = (sizeof(struct idt_entry) * 256) - 1;
+    idtp.base = (unsigned int)&idt;
+
+    // (Необязательный, но рекомендуемый шаг: очистка всей IDT)
+    // memset(&idt, 0, sizeof(struct idt_entry) * 256);
+
+    // 2. Устанавливаем обработчики (теперь адреса IDT и IDTP установлены)
     // Установка обработчика для Таймера (IRQ 0 -> 0x20)
     idt_set_gate(0x20, (unsigned int)isr_irq0, KERNEL_CS, 0x8E);
 
     // Установка обработчика для Клавиатуры (IRQ 1 -> 0x21)
     idt_set_gate(0x21, (unsigned int)isr_irq1, KERNEL_CS, 0x8E);
-    // 1. Устанавливаем указатель IDTP
-    idtp.limit = (sizeof(struct idt_entry) * 256) - 1;
-    idtp.base = (unsigned int)&idt;
-    struct idt_entry idt[256];
 
-    // 2. Переназначаем PIC (IRQ 0-7 -> 0x20-0x27, IRQ 8-15 -> 0x28-0x2F)
+    // 3. Переназначаем PIC.
+    // Это должно быть сделано ДО включения прерываний,
+    // чтобы процессор не получил старые, опасные прерывания.
     pic_remap(0x20, 0x28);
 
-    // 3. Заполняем все 256 дескрипторов нулями (или заглушками)
-    // Мы заполним их позже, а пока просто чистим.
-    // ...
-
-    // 4. Загружаем IDT в процессор (вызов функции Ассемблера)
+    // 4. Загружаем IDT в процессор
+    // После этого процессор начнет использовать IDT при прерываниях.
     lidt((void*)&idtp);
+
+    // (ВАЖНО: Активация прерываний "sti" должна быть в kmain, а не здесь.)
 }
 
 void isr_handler_c(struct registers *regs) {

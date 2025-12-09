@@ -1,4 +1,4 @@
-it's only simple kernel for computer but it already have an gcc compiler inside so it can compile the C++ and C code 
+it's only simple kernel for computer but it already have a gcc compiler inside so it can compile the C++ and C code 
 to run the kernel you need to install qemu for booting 
 for arch: sudo pacman -S qemu 
 if you dont have an assembly language 

@@ -1,6 +1,9 @@
 // src/idt.c
 
 #include "idt.h"
+#include "stdint.h"
+#include "vga.h"
+#include "string.h"
 
 
 // Глобальная таблица IDT (256 записей)
@@ -169,6 +172,11 @@ void isr_handler_c(struct registers *regs) {
     if (regs->int_no == 0x21) {
         keyboard_handler();
     }
+    if (regs->int_no == 14) {
+        // Передаем управление специализированному обработчику
+        page_fault_handler_c(regs);
+        return; // Page Fault в ядре фатален, но мы возвращаемся для очистки стека (IRET)
+    }
 
     // 2. Отправляем EOI на PIC
     if (regs->int_no >= 0x20 && regs->int_no <= 0x2F) {
@@ -192,3 +200,46 @@ void isr_handler_c(struct registers *regs) {
     }
 }
 
+void page_fault_handler_c(registers_t *regs) {
+    uint32_t faulting_address;
+    __asm__ volatile ("mov %%cr2, %0" : "=r" (faulting_address));
+
+    uint32_t error_code = regs->err_code; // Получаем код ошибки
+
+    terminal_write_string("PAGE FAULT! Address: 0x");
+    terminal_write_hex(faulting_address);
+    terminal_write_string("\n");
+    terminal_write_string("Dumping registers (context) from stack:\n");
+    // Выводим регистры, которые были сохранены перед вызовом обработчика.
+    terminal_dump_memory((uint32_t)regs, sizeof(registers_t));
+
+    // ---------------------------------------------
+    // АНАЛИЗ КОДА ОШИБКИ (Error Code)
+    // ---------------------------------------------
+
+    // Бит 0 (P): Присутствие страницы (0 = Страница не существует; 1 = Нарушение прав)
+    if (!(error_code & 0x1)) {
+        terminal_write_string("  Reason: Page Not Present.\n");
+    } else {
+        terminal_write_string("  Reason: Protection Violation.\n");
+    }
+
+    // Бит 1 (W/R): Операция (0 = Чтение; 1 = Запись)
+    if (error_code & 0x2) {
+        terminal_write_string("  Operation: Write.\n");
+    } else {
+        terminal_write_string("  Operation: Read.\n");
+    }
+
+    // Бит 2 (U/S): Уровень привилегий (0 = Ядро/Ring 0; 1 = Пользователь/Ring 3)
+    if (error_code & 0x4) {
+        terminal_write_string("  Mode: User (Ring 3).\n");
+    } else {
+        terminal_write_string("  Mode: Kernel (Ring 0).\n");
+    }
+
+    // ---------------------------------------------
+
+    terminal_write_string("KERNEL PANIC: Unrecoverable memory error.\n");
+    for(;;); // Остановка
+}

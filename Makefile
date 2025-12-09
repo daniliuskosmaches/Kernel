@@ -7,7 +7,8 @@ QEMU = qemu-system-i386
 
 # --- Файлы и Пути ---
 # Явно указываем, что объектные файлы будут в подпапке src/
-OBJECTS      = src/entry.o src/kernel.o src/asm_io.o src/idt.o src/isr.o src/vga.o src/timer.o src/pmm.o src/vmm.o src/string.o
+CFLAGS = -std=gnu99 -ffreestanding -O2 -Wall -Wextra -nostdlib -nostdinc -I.
+OBJECTS      = src/entry.o src/kernel.o src/asm_io.o src/idt.o src/isr.o src/vga.o src/timer.o src/pmm.o src/vmm.o src/task.o src/kheap.o src/string.o src/task_switch.o
 LINKER_SCRIPT = linker.ld
 KERNEL_BIN   = kernel.bin
 GRUB_CFG     = src/iso_root/grub/grub.cfg
@@ -19,6 +20,11 @@ GRUB_CFG     = src/iso_root/grub/grub.cfg
 all: $(KERNEL_BIN) iso
 
 
+src/task_switch.o: src/task_switch.asm
+	nasm -f elf src/task_switch.asm -o src/task_switch.o
+
+src/kheap.o: src/kheap.c
+	$(CC) $(CFLAGS) -c src/kheap.c -o src/kheap.o
 
 $(KERNEL_BIN): $(OBJECTS) $(LINKER_SCRIPT)
 	@echo "-> Линковка: Создание $@"
@@ -53,3 +59,4 @@ clean:
 	@echo "-> Очистка..."
 	rm -f $(OBJECTS) $(KERNEL_BIN) myos.iso
 	rm -rf iso_root/boot
+

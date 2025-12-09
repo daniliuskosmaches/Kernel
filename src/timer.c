@@ -4,6 +4,7 @@
 // src/timer.c
 #define PIT_FREQ 1193180
 #include "idt.h" // Для outb
+#include "task.h"
  // Для отладочного вывода
 
 unsigned long timer_ticks = 0;
@@ -20,6 +21,7 @@ void timer_handler() {
         // Например:
         // terminal_write_string("Tick.");
     }
+    switch_task();
 }
 
 void timer_install(int frequency) {

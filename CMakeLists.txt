@@ -14,6 +14,13 @@ add_executable(untitled2 main.c
         src/vga.h
         src/pmm.h
         src/string.h
+        src/stdint.h
+        src/stddef.h
+        src/task.h
+        src/task.c
+        src/kernel.h
+        src/kheap.c
+        src/string.c
 
 
 )

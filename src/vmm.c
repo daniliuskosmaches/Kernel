@@ -5,8 +5,10 @@
 // src/vmm.c
 #include "string.h"
 #include "vmm.h"
-#include "pmm.h" // Для pmm_alloc_page
-#include "vga.h" // Для отладки (если у вас есть terminal_write_string)
+#include "pmm.h"
+#include "string.h"
+// Для pmm_alloc_page
+ // Для отладки (если у вас есть terminal_write_string)
 
 // ----------------------------------------------------
 // Глобальные переменные VMM
@@ -47,8 +49,9 @@ void vmm_map_page(uint32_t virt_addr, uint32_t phys_addr, uint32_t flags) {
             return;
         }
 
-        // Заполняем новую PT нулями
-        memset((void*)new_table_phys_addr, 0, PAGE_SIZE);
+
+
+
 
         // Заполняем запись в каталоге страниц (PDE)
         pde->present = 1;
@@ -92,7 +95,9 @@ void vmm_init(void) {
     }
 
     // Очищаем PDT нулями
+    // Очистка нового Каталога Страниц перед использованием
     memset(new_pd, 0, PAGE_SIZE);
+
 
     // 2. Устанавливаем текущий каталог страниц
     current_page_directory = new_pd;

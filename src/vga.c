@@ -3,98 +3,138 @@
 //
 // src/vga.c
 
-// Адрес видеопамяти VGA Text Mode
-#define VGA_ADDRESS 0xB8000
-
 #include "vga.h"
-#include "string.h"
 
-// 1. Используем size_t, чтобы соответствовать объявлению в vga.h
- // Строка 11
-size_t vga_row = 0;
-size_t vga_col = 0;
+#include "stdint.h"
+#include "stddef.h"
+#include "string.h" // Для strlen и других, если они используются
+
+// Параметры VGA
+static const size_t VGA_WIDTH = 80;
+static const size_t VGA_HEIGHT = 25;
+
+// Цвет по умолчанию
+static uint8_t terminal_color;
+
+// Позиция курсора
+static size_t terminal_row;
+static size_t terminal_column;
+
+// Глобальный указатель на VGA-буфер.
+// Объявлен как static, чтобы был виден только здесь.co
+static uint16_t* vga_buffer;
 
 
-// 2. Используем uint16_t* const, чтобы соответствовать объявлению в vga.h
-// Переносим константность (const) в объявление, но используем const в определении
-// Если VGA_ADDRESS определено как 0xB8000, то:
-uint16_t* const vga_buffer = (uint16_t*)VGA_ADDRESS;
+// ----------------------------------------------------------------------
+// Вспомогательные функции
+// ----------------------------------------------------------------------
 
+static inline uint8_t vga_entry_color(enum vga_color fg, enum vga_color bg) {
+    return fg | bg << 4;
+}
 
-void terminal_put_char(char c) {
+static inline uint16_t vga_entry(unsigned char uc, uint8_t color) {
+    return (uint16_t)uc | (uint16_t)color << 8;
+}
 
-    if (c == '\n') {
-        vga_row++;
-        vga_col = 0;
-    } else {
-        // Создаем символ: ASCII код | (цвет << 8)
-        unsigned short entry = c | (0x0F << 8); // 0x0F = Белый на черном
-
-        // Записываем символ в текущую позицию
-        vga_buffer[vga_row * 80 + vga_col] = entry;
-
-        vga_col++;
-        if (vga_col >= 80) {
-            vga_row++;
-            vga_col = 0;
+// Прокрутка экрана на одну строку
+static void terminal_scroll() {
+    // ... (код прокрутки)
+    for (size_t y = 1; y < VGA_HEIGHT; y++) {
+        for (size_t x = 0; x < VGA_WIDTH; x++) {
+            const size_t index_old = y * VGA_WIDTH + x;
+            const size_t index_new = (y - 1) * VGA_WIDTH + x;
+            vga_buffer[index_new] = vga_buffer[index_old];
         }
     }
+    // ... (очистка последней строки)
+    uint16_t blank = vga_entry(' ', terminal_color);
+    for (size_t x = 0; x < VGA_WIDTH; x++) {
+        vga_buffer[(VGA_HEIGHT - 1) * VGA_WIDTH + x] = blank;
+    }
+    terminal_row = VGA_HEIGHT - 1;
+}
 
-    // Простая прокрутка (если строка выходит за пределы 25 строк)
-    if (vga_row >= 25) {
-        // (Для простоты, здесь должна быть логика прокрутки,
-        // пока просто сбросим курсор на начало)
-        vga_row = 0;
-        vga_col = 0;
+// ----------------------------------------------------------------------
+// Публичный API VGA
+// ----------------------------------------------------------------------
+
+void terminal_initialize(void) {
+    terminal_row = 0;
+    terminal_column = 0;
+    terminal_color = vga_entry_color(VGA_COLOR_LIGHT_GREY, VGA_COLOR_BLACK);
+
+    // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Используем локальный указатель 0xB8000
+    uint16_t* const local_vga_buffer = (uint16_t*)0xB8000;
+    vga_buffer = local_vga_buffer; // Присваиваем глобальному указателю
+
+    uint16_t entry = vga_entry(' ', terminal_color);
+
+    // Очистка экрана
+    for (size_t y = 0; y < VGA_HEIGHT; y++) {
+        for (size_t x = 0; x < VGA_WIDTH; x++) {
+            const size_t index = y * VGA_WIDTH + x;
+            vga_buffer[index] = entry;
+        }
     }
 }
 
+// ... (остальные функции)
 
-// src/vga.c (Фрагмент)
+void terminal_put_entry_at(char c, uint8_t color, size_t x, size_t y) {
+    const size_t index = y * VGA_WIDTH + x;
+    vga_buffer[index] = vga_entry(c, color);
+}
+
+void terminal_put_char(char c) {
+    if (c == '\n') {
+        terminal_column = 0;
+        terminal_row++;
+    } else if (c == '\r') {
+        terminal_column = 0;
+    } else {
+        terminal_put_entry_at(c, terminal_color, terminal_column, terminal_row);
+        terminal_column++;
+    }
+
+    if (terminal_column >= VGA_WIDTH) {
+        terminal_column = 0;
+        terminal_row++;
+    }
+
+    if (terminal_row >= VGA_HEIGHT) {
+        terminal_scroll();
+    }
+}
 
 void terminal_write_string(const char* data) {
-    size_t i = 0;
-    while (data[i] != '\0') {
+    for (size_t i = 0; data[i] != '\0'; i++) {
         terminal_put_char(data[i]);
-        i++;
     }
 }
 
-// src/vga.c (Фрагмент)
-
 void terminal_write_hex(uint32_t n) {
-    char *hex = "0123456789ABCDEF";
-    char buffer[9]; // 8 символов + \0
-    buffer[8] = '\0';
+    char hex_chars[] = "0123456789ABCDEF";
+    char buffer[11]; // "0x" + 8 hex digits + null
+    buffer[0] = '0';
+    buffer[1] = 'x';
 
-    // Преобразование числа в hex-строку
     for (int i = 7; i >= 0; i--) {
-        buffer[i] = hex[n & 0xF]; // Берем младшие 4 бита
-        n >>= 4; // Сдвигаем на 4 бита
+        buffer[2 + i] = hex_chars[n & 0xF];
+        n >>= 4;
     }
+    buffer[10] = '\0';
 
-    // Вывод строки (если вы не хотите выводить ведущие нули,
-    // нужно добавить логику пропуска)
     terminal_write_string(buffer);
 }
 
-void terminal_initialize(void) {
-    // 1. Устанавливаем цвет по умолчанию (например, белый на черном, 0x0F)
-    const uint8_t color = 0x0F;
-
-    // 2. Определяем символ, который будем использовать для заполнения (пробел + цвет)
-    // Пробел имеет ASCII код 0x20
-    const uint16_t entry = (uint16_t)' ' | (color << 8);
-
-    // 3. Заполняем весь экран (80 столбцов * 25 строк = 2000 символов)
-    for (size_t i = 0; i < 80 * 25; i++) {
-        vga_buffer[i] = entry;
+void terminal_backspace(void) {
+    if (terminal_column > 0) {
+        terminal_column--;
+        terminal_put_entry_at(' ', terminal_color, terminal_column, terminal_row);
     }
+}
 
-    // 4. Сбрасываем курсор в верхний левый угол
-    vga_row = 0;
-    vga_col = 0;
-
-    // В идеале здесь также должна быть функция, скрывающая или
-    // перемещающая аппаратный курсор VGA, но для начала это достаточно.
+void terminal_clear_screen(void) {
+    terminal_initialize();
 }

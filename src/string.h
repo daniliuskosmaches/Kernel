@@ -9,5 +9,7 @@
 
 void* memset(void* bufptr, int value, size_t size);
 void* memcpy(void* dest, const void* src, size_t count);
+int strcmp(const char* str1, const char* str2);
+size_t strlen(const char* str);
 
 #endif

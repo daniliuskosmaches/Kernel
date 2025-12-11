@@ -49,9 +49,8 @@ void vmm_map_page(uint32_t virt_addr, uint32_t phys_addr, uint32_t flags) {
             return;
         }
 
-
-
-
+        // КРИТИЧНО: Очищаем новую таблицу страниц!
+        memset((void*)new_table_phys_addr, 0, PAGE_SIZE);
 
         // Заполняем запись в каталоге страниц (PDE)
         pde->present = 1;

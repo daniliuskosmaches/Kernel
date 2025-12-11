@@ -30,5 +30,6 @@ typedef struct registers{
 extern void idt_install();
 extern void idt_set_gate(unsigned char num, unsigned long base, unsigned short sel, unsigned char flags);
 void page_fault_handler_c(registers_t *regs);
+void install_interrupt_handler(int irq_number, void (*handler)(registers_t *regs));
 
 #endif

@@ -1,46 +1,48 @@
-; src/entry.asm
+; src/entry.asm (С КОРРЕКТНЫМ MULTIBOOT HEADER)
 
+; -------------------------------------------
+; 1. Multiboot Header (Обязательно для GRUB)
+; -------------------------------------------
 section .multiboot
+MBOOT_PAGE_ALIGN    equ 1 << 0  ; Выровнять по странице
+MBOOT_MEM_INFO      equ 1 << 1  ; Передать инфо о памяти
+MBOOT_HEADER_MAGIC  equ 0x1BADB002
+MBOOT_HEADER_FLAGS  equ MBOOT_PAGE_ALIGN | MBOOT_MEM_INFO
+MBOOT_CHECKSUM      equ -(MBOOT_HEADER_MAGIC + MBOOT_HEADER_FLAGS)
 
-; Определяем константы для Multiboot 1
-MULTIBOOT_MAGIC equ 0x1BADB002
-MULTIBOOT_FLAGS equ 0x00 ; Минимальные флаги
-MULTIBOOT_CHECKSUM equ -(MULTIBOOT_MAGIC + MULTIBOOT_FLAGS)
+dd MBOOT_HEADER_MAGIC
+dd MBOOT_HEADER_FLAGS
+dd MBOOT_CHECKSUM
 
-dd MULTIBOOT_MAGIC
-dd MULTIBOOT_FLAGS
-dd MULTIBOOT_CHECKSUM
-
+; -------------------------------------------
+; 2. Точка Входа Ядра
+; -------------------------------------------
 section .text
 global _start
-extern kmain  ; Объявляем, что kmain() будет функцией на C
+extern kmain
 
 _start:
-; Передача аргументов в kmain:
-    ; kmain(multiboot_magic, multiboot_info_t *mbi)
-
-    push ebx    ; push mbi (второй аргумент)
-    push eax    ; push multiboot_magic (первый аргумент)
-
-    call kmain
-
-    add esp, 8  ; Очистка стека
-    ; 1. Настройка Стека
-    ; Мы устанавливаем указатель стека (ESP) на конец зарезервированного нами блока
+    ; 1. Настройка Стека:
     mov esp, stack_top
 
-    ; 2. Вызов главной функции ядра на C
+    ; 2. Передача аргументов в kmain:
+    push ebx    ; push mbi
+    push eax    ; push multiboot_magic
+
+    ; 3. Вызов главной функции ядра на C
     call kmain
 
-    ; 3. Бесконечный цикл после завершения работы ядра (на случай, если kmain() вернет управление)
-    cli         ; Отключить прерывания
+    ; 4. Очистка стека от аргументов
+    add esp, 8
+
+    ; 5. Бесконечный цикл
+    cli
 .loop:
-    hlt         ; Остановить процессор
+    hlt
     jmp .loop
 
 ; --- Данные ---
 
 section .bss
-; Зарезервировать 8 КБ для стека
 resb 8192
 stack_top:

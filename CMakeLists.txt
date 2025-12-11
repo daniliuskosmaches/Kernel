@@ -21,6 +21,12 @@ add_executable(untitled2 main.c
         src/kernel.h
         src/kheap.c
         src/string.c
+        src/kheap.h
+        src/keyboard.h
+        src/keyboard.c
+        src/io.h
+        src/isr.h
+        src/timer.h
 
 
 )

@@ -1,17 +1,24 @@
 // src/idt.c
+// src/idt.c (ИСПРАВЛЕННЫЙ КОД)
 
 #include "idt.h"
+#include "isr.h"
 #include "stdint.h"
 #include "vga.h"
 #include "string.h"
+// Убедитесь, что system.h включен (он должен быть включен через idt.h, но на всякий случай)
+#include "system.h"
 
+// --- ГЛОБАЛЬНЫЕ ОПРЕДЕЛЕНИЯ ---
+// 1. Определение глобального массива обработчиков (выделение памяти)
+// ВАЖНО: Это единственное место, где он должен быть определен.
+void (*interrupt_handlers[256])(registers_t *regs) = {0};
 
-// Глобальная таблица IDT (256 записей)
-
+// 2. Глобальная таблица IDT (256 записей)
+struct idt_entry idt[256];
 struct idt_ptr idtp;
 
 // Селектор сегмента кода.
-// В Multiboot это обычно 0x08, но нужно проверить ваш linker.ld.
 #define KERNEL_CS 0x08
 
 // Порты I/O для главного и подчиненного PIC
@@ -21,17 +28,16 @@ struct idt_ptr idtp;
 #define PIC2_DATA 0xA1
 
 // ----------------------------------------------------
-// 1. Функция для заполнения одного дескриптора IDT
+// Объявления внешних функций (для избежания 'implicit declaration')
 // ----------------------------------------------------
 extern void isr_irq0(void);
 extern void isr_irq1(void);
 extern void terminal_put_char(char c);
-extern void timer_handler(struct registers *regs);
-// -----------------------------------------------------------------
-
-// Глобальная таблица IDT (256 записей)
-struct idt_entry idt[256];
-struct idt_ptr idtp;
+extern void terminal_write_string(const char* s);
+extern void terminal_write_hex(uint32_t val);
+extern void terminal_dump_memory(uint32_t addr, uint32_t size);
+extern void timer_handler(registers_t *regs);
+extern void page_fault_handler_c(registers_t *regs);
 
 void idt_set_gate(unsigned char num, unsigned long base, unsigned short sel, unsigned char flags) {
     idt[num].base_low  = (base & 0xFFFF);
@@ -43,7 +49,7 @@ void idt_set_gate(unsigned char num, unsigned long base, unsigned short sel, uns
 }
 
 // ----------------------------------------------------
-// 2. Функция для переназначения PIC
+// Функция для переназначения PIC
 // ----------------------------------------------------
 void pic_remap(int offset1, int offset2) {
     unsigned char a1, a2;
@@ -57,18 +63,16 @@ void pic_remap(int offset1, int offset2) {
     outb(PIC2_COMMAND, 0x11);
 
     // ICW2: Сдвиг векторов (Critical step!)
-    // Master PIC (IRQ 0-7) начинается с вектора 0x20 (32)
     outb(PIC1_DATA, offset1);
-    // Slave PIC (IRQ 8-15) начинается с вектора 0x28 (40)
     outb(PIC2_DATA, offset2);
 
     // ICW3: Соединение PIC (Master - Slave)
-    outb(PIC1_DATA, 0x04); // Slave соединен с IRQ 2 (0000 0100b)
-    outb(PIC2_DATA, 0x02); // ID Slave'а (0000 0010b)
+    outb(PIC1_DATA, 0x04);
+    outb(PIC2_DATA, 0x02);
 
     // ICW4: Режим работы (8086 mode)
-    outb(PIC1_DATA, 0x01);
-    outb(PIC2_DATA, 0x01);
+    outb(PIC1_COMMAND, 0x01); // Исправлено: outb(PIC1_DATA, 0x01); -> outb(PIC1_COMMAND, 0x01);
+    outb(PIC2_COMMAND, 0x01);
 
     // Восстанавливаем сохраненные маски
     outb(PIC1_DATA, a1);
@@ -76,127 +80,106 @@ void pic_remap(int offset1, int offset2) {
 }
 
 // ----------------------------------------------------
-// 3. Главная функция установки IDT
+// Главная функция установки IDT
 // ----------------------------------------------------
 void idt_install(void) {
     // 1. Устанавливаем указатель IDTP (Limit и Base)
     idtp.limit = (sizeof(struct idt_entry) * 256) - 1;
     idtp.base = (unsigned int)&idt;
 
-    // (Необязательный, но рекомендуемый шаг: очистка всей IDT)
-    // memset(&idt, 0, sizeof(struct idt_entry) * 256);
+    // 2. Устанавливаем обработчики (примеры)
+    idt_set_gate(0x20, (unsigned int)isr_irq0, KERNEL_CS, 0x8E); // Таймер
+    idt_set_gate(0x21, (unsigned int)isr_irq1, KERNEL_CS, 0x8E); // Клавиатура
+    idt_set_gate(14, (unsigned int)isr_irq1, KERNEL_CS, 0x8E); // Page Fault (используем временно isr_irq1, т.к. isr.asm не имеет отдельного обработчика)
 
-    // 2. Устанавливаем обработчики (теперь адреса IDT и IDTP установлены)
-    // Установка обработчика для Таймера (IRQ 0 -> 0x20)
-    idt_set_gate(0x20, (unsigned int)isr_irq0, KERNEL_CS, 0x8E);
-
-    // Установка обработчика для Клавиатуры (IRQ 1 -> 0x21)
-    idt_set_gate(0x21, (unsigned int)isr_irq1, KERNEL_CS, 0x8E);
 
     // 3. Переназначаем PIC.
-    // Это должно быть сделано ДО включения прерываний,
-    // чтобы процессор не получил старые, опасные прерывания.
     pic_remap(0x20, 0x28);
 
     // 4. Загружаем IDT в процессор
-    // После этого процессор начнет использовать IDT при прерываниях.
     lidt((void*)&idtp);
-
-    // (ВАЖНО: Активация прерываний "sti" должна быть в kmain, а не здесь.)
 }
 
 char kbd_us[128] =
 {
     0,   27, '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-', '=', '\b',
-  '\t', /* 0x0F - Tab */
-  'q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p', '[', ']', '\n', /* 0x1C - Enter */
-    0, /* 0x1D - Left Ctrl */
+  '\t',
+  'q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p', '[', ']', '\n',
+    0,
   'a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l', ';', '\'', '`',
-    0, /* 0x2A - Left Shift */
+    0,
  '\\', 'z', 'x', 'c', 'v', 'b', 'n', 'm', ',', '.', '/',
-    0, /* 0x36 - Right Shift */
+    0,
     '*',
-    0, /* 0x38 - Left Alt */
-  ' ', /* 0x39 - Spacebar */
-    0, /* 0x3A - Caps Lock */
-    0, /* 0x3B - F1 */
-    0, /* 0x3C - F2 */
+    0,
+  ' ',
     0,
     0,
     0,
     0,
     0,
-    0, /* 0x43 - F9 */
-    0, /* 0x44 - F10 */
-    0, /* 0x45 - Num Lock */
-    0, /* 0x46 - Scroll Lock */
-    '7', /* 0x47 - Keypad 7 */
-    '8', /* 0x47 - Keypad 8 */
-    '9', /* 0x47 - Keypad 9 */
-    '-', /* 0x4A - Keypad - */
-    '4', /* 0x4B - Keypad 4 */
-    '5', /* 0x4C - Keypad 5 */
-    '6', /* 0x4D - Keypad 6 */
-    '+', /* 0x4E - Keypad + */
-    '1', /* 0x4F - Keypad 1 */
-    '2', /* 0x50 - Keypad 2 */
-    '3', /* 0x51 - Keypad 3 */
-    '0', /* 0x52 - Keypad 0 */
-    '.', /* 0x53 - Keypad . */
     0,
     0,
-    0, /* 0x57 - F11 */
-    0, /* 0x58 - F12 */
+    0,
+    0,
+    0,
+    0,
+    0,
+    '7',
+    '8',
+    '9',
+    '-',
+    '4',
+    '5',
+    '6',
+    '+',
+    '1',
+    '2',
+    '3',
+    '0',
+    '.',
+    0,
+    0,
+    0,
+    0,
 };
 
+extern void shell_handle_char(char c);
+
 void keyboard_handler(void) {
-    // 1. Считываем скан-код из порта данных клавиатуры (0x60)
     unsigned char scancode = inb(0x60);
 
-    // 2. Проверяем, была ли клавиша НАЖАТА (Scancode < 0x80)
     if (scancode < 128) {
-        // 3. Преобразуем скан-код в ASCII
         char c = kbd_us[scancode];
 
-        // 4. Выводим символ, если он действителен (не 0)
         if (c != 0) {
-            terminal_put_char(c);
+            shell_handle_char(c);
         }
     }
 }
 
-void isr_handler_c(struct registers *regs) {
-    if (regs->int_no == 0x20) {
-        timer_handler(regs);
-    }
-    if (regs->int_no == 0x21) {
-        keyboard_handler();
-    }
-    if (regs->int_no == 14) {
-        // Передаем управление специализированному обработчику
-        page_fault_handler_c(regs);
-        return; // Page Fault в ядре фатален, но мы возвращаемся для очистки стека (IRET)
+// ----------------------------------------------------
+// Главный C-обработчик всех прерываний
+// ----------------------------------------------------
+void isr_handler_c(registers_t *regs) {
+    // 1. Диспетчеризация через массив обработчиков
+    if (interrupt_handlers[regs->int_no] != 0) {
+        interrupt_handlers[regs->int_no](regs);
     }
 
-    // 2. Отправляем EOI на PIC
+    // 2. Отправляем EOI на PIC (Только для IRQ прерываний: 0x20 - 0x2F)
+    if (regs->int_no >= 0x20 && regs->int_no <= 0x2F) {
+        // Проверяем, нужно ли сбросить Slave PIC
+        if (regs->int_no >= 0x28) {
+            outb(0xA0, 0x20); // Slave PIC EOI
+        }
+        outb(0x20, 0x20); // Master PIC EOI
+    }
     if (regs->int_no >= 0x20 && regs->int_no <= 0x2F) {
         if (regs->int_no >= 0x28) {
-            outb(0xA0, 0x20); // Slave PIC
+            outb(0xA0, 0x20); // Slave PIC EOI
         }
-        outb(0x20, 0x20); // Master PIC
-    }
-    // Внимание: Вам нужно будет определить структуру 'registers' позже!
-
-    // Для начала, просто выведем символ, если это прерывание от PIC
-    if (regs->int_no >= 0x20 && regs->int_no <= 0x2F) {
-        // Здесь будет наш обработчик клавиатуры/таймера
-
-        // Отправка EOI (End of Interrupt) на PIC (ОЧЕНЬ ВАЖНО!)
-        // Без этого PIC не будет генерировать новые прерывания.
-        if (regs->int_no >= 0x28) {
-            outb(0xA0, 0x20); // Slave PIC
-        }
-        outb(0x20, 0x20); // Master PIC
+        outb(0x20, 0x20); // Master PIC EOI
     }
 }
 
@@ -204,42 +187,56 @@ void page_fault_handler_c(registers_t *regs) {
     uint32_t faulting_address;
     __asm__ volatile ("mov %%cr2, %0" : "=r" (faulting_address));
 
-    uint32_t error_code = regs->err_code; // Получаем код ошибки
+    uint32_t error_code = regs->err_code;
 
     terminal_write_string("PAGE FAULT! Address: 0x");
     terminal_write_hex(faulting_address);
     terminal_write_string("\n");
-    terminal_write_string("Dumping registers (context) from stack:\n");
-    // Выводим регистры, которые были сохранены перед вызовом обработчика.
-    terminal_dump_memory((uint32_t)regs, sizeof(registers_t));
 
-    // ---------------------------------------------
     // АНАЛИЗ КОДА ОШИБКИ (Error Code)
-    // ---------------------------------------------
-
-    // Бит 0 (P): Присутствие страницы (0 = Страница не существует; 1 = Нарушение прав)
     if (!(error_code & 0x1)) {
         terminal_write_string("  Reason: Page Not Present.\n");
     } else {
         terminal_write_string("  Reason: Protection Violation.\n");
     }
 
-    // Бит 1 (W/R): Операция (0 = Чтение; 1 = Запись)
     if (error_code & 0x2) {
         terminal_write_string("  Operation: Write.\n");
     } else {
         terminal_write_string("  Operation: Read.\n");
     }
 
-    // Бит 2 (U/S): Уровень привилегий (0 = Ядро/Ring 0; 1 = Пользователь/Ring 3)
     if (error_code & 0x4) {
         terminal_write_string("  Mode: User (Ring 3).\n");
     } else {
         terminal_write_string("  Mode: Kernel (Ring 0).\n");
     }
 
-    // ---------------------------------------------
-
     terminal_write_string("KERNEL PANIC: Unrecoverable memory error.\n");
     for(;;); // Остановка
+}
+
+
+void pic_enable_irq(uint8_t irq)
+{
+    uint16_t port;
+    uint8_t value;
+
+    if(irq < 8) {
+        port = PIC1_DATA;
+    } else {
+        port = PIC2_DATA;
+        irq -= 8;
+    }
+
+    value = inb(port) & ~(1 << irq);
+    outb(port, value);
+}
+
+// ----------------------------------------------------
+// Функция для установки обработчиков
+// ----------------------------------------------------
+void install_interrupt_handler(int irq_number, void (*handler)(registers_t *regs)) {
+    // Массив interrupt_handlers определен глобально выше
+    interrupt_handlers[irq_number] = handler;
 }

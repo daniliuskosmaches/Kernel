@@ -1,4 +1,5 @@
 //
+#include "isr.h"
 //UNT// src/keyboard.h
 #ifndef KEYBOARD_H
 #define KEYBOARD_H
@@ -6,6 +7,7 @@
 
 
 void init_keyboard(void);
-void keyboard_handler(void);
+void keyboard_handler_c(registers_t *regs);
+
 
 #endif

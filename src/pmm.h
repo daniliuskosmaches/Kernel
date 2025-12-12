@@ -5,7 +5,7 @@
 #ifndef PMM_H
 #define PMM_H
 
-#include <stdint.h>
+#include "stdint.h"
 
 // Функции для управления физической памятью
 void pmm_init(void *multiboot_info);

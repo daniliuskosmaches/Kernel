@@ -5,6 +5,7 @@
 #define PIT_FREQ 1193180
 #include "idt.h" // Для outb
 #include "task.h"
+#include "system.h"
  // Для отладочного вывода
 
 unsigned long timer_ticks = 0;
@@ -24,7 +25,7 @@ void timer_handler() {
     switch_task();
 }
 
-void timer_install(int frequency) {
+void time_install(int frequency) {
     // 1. Рассчитываем делитель
     int divisor = PIT_FREQ / frequency;
 

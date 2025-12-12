@@ -38,6 +38,7 @@ static const unsigned char kbd_us[128] =
 // Инициализация клавиатуры
 void init_keyboard(void) {
     // Включаем IRQ1 (клавиатура)
+    register_interrupt_handler(IRQ1, keyboard_handler_c);
     pic_enable_irq(1);
     terminal_write_string("Phase 2: Keyboard enabled (IRQ1).\n");
 }
@@ -64,5 +65,5 @@ void keyboard_handler_c(registers_t *regs) {
 void keyboard_install() {
     // Устанавливаем обработчик для IRQ 1, который соответствует ISR 33
     // (ISR 32 - 47 зарезервированы для IRQ 0 - 15)
-    install_interrupt_handler(IRQ1, keyboard_handler_c);
+    register_interrupt_handler(IRQ1, keyboard_handler_c);
 }

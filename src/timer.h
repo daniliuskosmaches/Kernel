@@ -11,7 +11,7 @@
 // ---------------------------------------------------------------------
 
 // Основная функция для инициализации PIT (Programmable Interval Timer)
-void timer_install(unsigned long freq);
+void time_install(unsigned long freq);
 
 // C-обработчик прерывания таймера (вызывается из isr_handler_c)
 void timer_handler_c(registers_t *regs);

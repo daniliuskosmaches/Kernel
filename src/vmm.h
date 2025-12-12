@@ -2,8 +2,8 @@
 #ifndef VMM_H
 #define VMM_H
 
-#include <stdint.h>
-#include <stddef.h> // Для size_t (если используется в других функциях VMM)
+#include "stdint.h"
+#include "stddef.h" // Для size_t (если используется в других функциях VMM)
 
 // Размер страницы
 #define PAGE_SIZE 4096

@@ -1,35 +1,42 @@
-// src/idt.h
+// src/idt.h (ИСПРАВЛЕННО, ВКЛЮЧАЕТ СТРУКТУРЫ)
 
-#ifndef __IDT_H
-#define __IDT_H
+#ifndef IDT_H
+#define IDT_H
+#define IRQ_MASTER_OFFSET 0x20 // Начало IRQ Master (IRQ0 = 0x20)
+#define IRQ_SLAVE_OFFSET  0x28 // Начало IRQ Slave (IRQ8 = 0x28)
 
-#include "system.h" // Для inb, outb, lidt
+// Определения для IRQ0 (Таймер) и IRQ1 (Клавиатура)
+#define IRQ0 (IRQ_MASTER_OFFSET + 0) // Таймер
+#define IRQ1 (IRQ_MASTER_OFFSET + 1) // Клавиатура <--- ЭТО РЕШАЕТ ПРОБЛЕМУ 'IRQ1'
 
-// Структура для одного дескриптора в IDT (64-бит / 8 байт)
+
+#include <stdint.h>
+#include "isr.h" // Импортирует registers_t
+
+// --- IDT Structures (DEFINITIONS) ---
+// Эти структуры критически важны и должны быть в заголовке
+// чтобы idt.c мог определить глобальные массивы.
 struct idt_entry {
-    unsigned short base_low;    // Младшие 16 бит адреса обработчика (ISR)
-    unsigned short selector;    // Сегментный селектор (CS, обычно 0x08)
-    unsigned char  zero;        // Всегда 0
-    unsigned char  flags;       // Флаги (присутствие, тип гейта и DPL)
-    unsigned short base_high;   // Старшие 16 бит адреса обработчика
-} __attribute__((packed)); // Важно для выравнивания!
-
-// Структура для указателя IDT (IDTR)
-struct idt_ptr {
-    unsigned short limit;       // Размер IDT (в байтах)
-    unsigned int   base;        // 32-битный адрес начала IDT
+    uint16_t base_low;
+    uint16_t selector;
+    uint8_t zero;
+    uint8_t flags;
+    uint16_t base_high;
 } __attribute__((packed));
 
-typedef struct registers{
-    unsigned int ds;                 // Сегмент данных
-    unsigned int edi, esi, ebp, esp, ebx, edx, ecx, eax; // pusha сохраняет их
-    unsigned int int_no, err_code;   // Номер прерывания и код ошибки
-    unsigned int eip, cs, eflags, useresp, ss; // Автоматически сохраняется CPU
-}registers_t;
-// Объявления функций
-extern void idt_install();
-extern void idt_set_gate(unsigned char num, unsigned long base, unsigned short sel, unsigned char flags);
-void page_fault_handler_c(registers_t *regs);
-void install_interrupt_handler(int irq_number, void (*handler)(registers_t *regs));
+struct idt_ptr {
+    uint16_t limit;
+    uint32_t base;
+} __attribute__((packed));
 
-#endif
+
+// --- ПУБЛИЧНЫЕ ПРОТОТИПЫ ---
+
+extern void idt_install(void);
+extern void register_interrupt_handler(uint8_t n, void (*handler)(registers_t *regs));
+extern void pic_enable_irq(uint8_t irq);
+extern void init_keyboard(void);
+
+
+
+#endif // IDT_H

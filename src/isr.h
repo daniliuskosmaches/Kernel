@@ -14,7 +14,7 @@ typedef struct registers {
 } registers_t;
 
 // Прототип главного C-обработчика
-void isr_handler_c(registers_t *regs);
+void isr_handler_c(registers_t *regs, uint8_t int_no);
 
 
 #endif // ISR_H

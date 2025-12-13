@@ -8,7 +8,7 @@
 #include "stdint.h"
 
 // Функции для управления физической памятью
-void pmm_init(void *multiboot_info);
+extern void pmm_init(multiboot_info_t *mbi);
 void *pmm_alloc_page(void);
 void pmm_free_page(void *p);
 

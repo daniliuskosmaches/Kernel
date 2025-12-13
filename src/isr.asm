@@ -1,6 +1,7 @@
 ; src/isr.asm (ФУЛЛ-ФИКС: Векторы 0-47)
 
 extern isr_handler_c
+
 section .text
 global isr_common
 
@@ -71,6 +72,7 @@ ISR_NOERRCODE 31
 %macro IRQ 2
 global irq%1
 irq%1:
+    cli                   ; Отключить прерывания
     push byte 0           ; Эмулируем код ошибки
     push byte %2          ; Вектор прерывания (0x20, 0x21, ...)
     jmp isr_common
@@ -108,11 +110,18 @@ isr_common:
     mov fs, ax
     mov gs, ax
 
+    ; СОХРАНЯЕМ int_no ДО ЛЮБЫХ ОПЕРАЦИЙ
+    mov eax, [esp + 36]    ; int_no находится в [esp+36] (после pusha + ds)
+    mov ebx, eax           ; EBX = int_no (сохраняем на случай)
+
     ; 3. Вызываем C-обработчик, передавая ему указатель на структуру registers_t (ESP)
     mov eax, esp
     push eax             ; Передаем указатель на регистры (EAX) как аргумент (regs*)
+    push ebx             ; arg2: int_no
 
     call isr_handler_c   ; 4. Вызов обработчика на C
+
+    add esp, 8             ; Очистить 2 аргумента
 
     pop eax              ; 5. Очистить стек от аргумента (EAX)
 
@@ -125,6 +134,22 @@ isr_common:
 
     popa                 ; 7. Восстановить регистры общего назначения
 
+    ; ОТПРАВЛЯЕМ EOI на основе сохраненного int_no (в EBX)
+    cmp ebx, 0x20          ; IRQ начинается с 0x20
+    jl .no_eoi
+
+    cmp ebx, 0x28
+    jl .master_only
+
+    ; Slave PIC
+    mov al, 0x20
+    out 0xA0, al
+
+.master_only:
+    mov al, 0x20
+    out 0x20, al
+
+.no_eoi:
     ; 8. Очистить стек от номера вектора и кода ошибки (2 x 4 байта = 8 байт)
     add esp, 8
     iret                 ; 9. Возврат из прерывания

@@ -1,6 +1,4 @@
-// src/kernel.c (ФИНАЛЬНАЯ ИСПРАВЛЕННАЯ ВЕРСИЯ)
-
-// Главная функция, вызываемая из entry.asm
+// src/kernel.c - ФИНАЛЬНАЯ РАБОЧАЯ ВЕРСИЯ
 
 #include "idt.h"
 #include "multiboot.h"
@@ -8,107 +6,139 @@
 #include "vmm.h"
 #include "timer.h"
 #include "task.h"
-#include "kheap.h"// Для task_init
+#include "kheap.h"
+#include "pmm.h"
+#include "keyboard.h"
+#include "shell.h"
 
-// Объявления внешних функций, необходимые для kmain
-// ----------------------------------------------------------------------
+// Объявления внешних функций
 extern void pmm_init(multiboot_info_t *mbi);
 extern void vmm_init(void);
 extern void shell_init(void);
+extern void kheap_init(void);
+extern void init_keyboard(void);
+extern void task_init(void);
 
-// КРИТИЧЕСКИ НЕДОСТАЮЩИЕ:
-extern void kheap_init(void);    // Инициализация кучи
-extern void init_keyboard(void); // Инициализация клавиатуры (в keyboard.c)
-extern void task_init(void);     // Инициализация подсистемы задач
-
-// ----------------------------------------------------------------------
-
-
-// Вспомогательная функция для тестовой задачи (пример)
-void task_b_entry() {
-    terminal_write_string("Task B running...\\n");
-    for (;;) {
-        // Если переключение работает, эта строка будет выводиться по очереди
-        terminal_write_string("B");
-    }
-}
-
-
+// ============================================================
+// ГЛАВНАЯ ФУНКЦИЯ ЯДРА
+// ============================================================
 void kmain(unsigned int multiboot_magic, multiboot_info_t *mbi) {
-    // 1. Инициализация VGA ПЕРВЫМ (чтобы видеть ошибки)
+
+    // ========================================================
+    // ФАЗА 1: ИНИЦИАЛИЗАЦИЯ ТЕРМИНАЛА
+    // ========================================================
     terminal_initialize();
-    terminal_write_string("Booting MyOS...\\n");
+    terminal_write_string("========================================\n");
+    terminal_write_string("       MyOS v1.0 - Booting...          \n");
+    terminal_write_string("========================================\n\n");
 
-    // Проверка Multiboot Magic и наличия карты памяти
+    // ========================================================
+    // ФАЗА 2: ПРОВЕРКА MULTIBOOT
+    // ========================================================
+    terminal_write_string("[1/9] Checking Multiboot... ");
+
     if (multiboot_magic != MULTIBOOT_BOOTLOADER_MAGIC) {
-        terminal_write_string("ERROR: Invalid multiboot magic!\\n");
-        for(;;);
+        terminal_write_string("FAILED\n");
+        terminal_write_string("ERROR: Invalid multiboot magic number!\n");
+        terminal_write_string("Expected: 0x");
+        terminal_write_hex(MULTIBOOT_BOOTLOADER_MAGIC);
+        terminal_write_string("\nGot: 0x");
+        terminal_write_hex(multiboot_magic);
+        terminal_write_string("\n");
+        for(;;) __asm__ volatile("cli; hlt");
     }
+
     if (!(mbi->flags & MULTIBOOT_FLAG_MMAP)) {
-        terminal_write_string("ERROR: No memory map provided!\\n");
-        for(;;);
+        terminal_write_string("FAILED\n");
+        terminal_write_string("ERROR: No memory map provided by bootloader!\n");
+        for(;;) __asm__ volatile("cli; hlt");
     }
-    terminal_write_string("Phase 1: Terminal Ready.\\n");
 
+    terminal_write_string("OK\n");
 
-    // 2. Установка IDT (Обработчики сбоев и прерываний ВЫКЛЮЧЕНЫ)
+    // ========================================================
+    // ФАЗА 3: ИНИЦИАЛИЗАЦИЯ IDT
+    // ========================================================
+    terminal_write_string("[2/9] Installing IDT... ");
     idt_install();
-    terminal_write_string("Phase 2: IDT Ready.\\n");
+    terminal_write_string("OK\n");
 
-
-    // 3. Управление Памятью (PMM/VMM)
-    terminal_write_string("Initializing PMM and VMM...\\n");
+    // ========================================================
+    // ФАЗА 4: ИНИЦИАЛИЗАЦИЯ УПРАВЛЕНИЯ ПАМЯТЬЮ
+    // ========================================================
+    terminal_write_string("[3/9] Initializing PMM... ");
     pmm_init(mbi);
+    terminal_write_string("OK\n");
+
+    terminal_write_string("[4/9] Initializing VMM... ");
     vmm_init();
-    terminal_write_string("Phase 3: Memory Managers Ready.\\n");
+    terminal_write_string("OK\n");
 
-
-    // 4. ИНИЦИАЛИЗАЦИЯ КУЧИ (Kernel Heap) <-- КРИТИЧЕСКИЙ ВЫЗОВ
-    // Теперь kmalloc/kfree будут работать, что необходимо для task.c и shell.c
-    terminal_write_string("Phase 4: Initializing Kernel Heap...\\n");
+    // ========================================================
+    // ФАЗА 5: ИНИЦИАЛИЗАЦИЯ КУЧИ
+    // ========================================================
+    terminal_write_string("[5/9] Initializing Kernel Heap... ");
     kheap_init();
-    terminal_write_string("Kernel Heap Ready.\\n");
 
+    // Проверяем, работает ли kmalloc
+    void* test_ptr = kmalloc(64);
+    if (test_ptr == 0) {
+        terminal_write_string("FAILED\n");
+        terminal_write_string("ERROR: kmalloc() returned NULL!\n");
+        for(;;) __asm__ volatile("cli; hlt");
+    }
+    kfree(test_ptr);
+    terminal_write_string("OK\n");
 
-    // 5. ИНИЦИАЛИЗАЦИЯ МНОГОЗАДАЧНОСТИ
-    terminal_write_string("Phase 5: Initializing Tasking...\\n");
+    // ========================================================
+    // ФАЗА 6: ИНИЦИАЛИЗАЦИЯ МНОГОЗАДАЧНОСТИ
+    // ========================================================
+    terminal_write_string("[6/9] Initializing Tasking... ");
     task_init();
+    terminal_write_string("OK\n");
 
-    // Создаем тестовую задачу (необязательно, но полезно для проверки планировщика)
-    // create_task(task_b_entry, 0); // Раскомментировать, когда task.c будет готов
-
-    terminal_write_string("Tasking Subsystem Ready.\\n");
-
-
-    // 6. Установка Таймера (IRQ0) и Клавиатуры (IRQ1)
-    terminal_write_string("Phase 6: Installing Timer and Keyboard...\\n");
-
-    // Настраивает PIT и регистрирует обработчик (timer_handler_c)
+    // ========================================================
+    // ФАЗА 7: ИНИЦИАЛИЗАЦИЯ ТАЙМЕРА (IRQ0)
+    // ========================================================
+    terminal_write_string("[7/9] Installing Timer (100 Hz)... ");
     time_install(100);
-    terminal_write_string("Timer and IRQ0 Ready.\\n");
+    terminal_write_string("OK\n");
 
-    // Инициализация Клавиатуры (включает IRQ1) <-- КРИТИЧЕСКИЙ ВЫЗОВ
+    // ========================================================
+    // ФАЗА 8: ИНИЦИАЛИЗАЦИЯ КЛАВИАТУРЫ (IRQ1)
+    // ========================================================
+    terminal_write_string("[8/9] Installing Keyboard... ");
     init_keyboard();
-    terminal_write_string("Keyboard and IRQ1 Ready.\\n");
+    terminal_write_string("OK\n");
 
-
-    // 7. Включаем прерывания
+    // ========================================================
+    // ФАЗА 9: ВКЛЮЧЕНИЕ ПРЕРЫВАНИЙ
+    // ========================================================
+    terminal_write_string("[9/9] Enabling Interrupts... ");
     __asm__ volatile ("sti");
-    terminal_write_string("Phase 7: Interrupts Enabled (STI).\\n");
+    terminal_write_string("OK\n\n");
 
+    // ========================================================
+    // ФИНАЛЬНОЕ СООБЩЕНИЕ
+    // ========================================================
+    terminal_write_string("========================================\n");
+    terminal_write_string("    Boot Complete! System Ready.       \n");
+    terminal_write_string("========================================\n\n");
 
-    // 8. Инициализация Shell (теперь он может использовать kmalloc)
-    terminal_write_string("Phase 8: Initializing Shell...\\n");
+    // Небольшая задержка для красоты
+    for (volatile int i = 0; i < 10000000; i++);
+
+    // ========================================================
+    // ЗАПУСК КОМАНДНОЙ ОБОЛОЧКИ
+    // ========================================================
+    terminal_clear_screen();
     shell_init();
 
-    terminal_write_string("\\n");
-    terminal_write_string("===========================\\n");
-    terminal_write_string("Welcome to MyOS!\\n");
-    terminal_write_string("Type 'help' for commands.\\n");
-    terminal_write_string("===========================\\n");
-
-    // 9. Главный цикл ядра: ждем прерываний (или планировщика)
+    // ========================================================
+    // ГЛАВНЫЙ ЦИКЛ ЯДРА
+    // ========================================================
+    // Ядро просто ждет прерываний (таймер, клавиатура)
     for (;;) {
-        __asm__ volatile ("hlt"); // Останавливаем ЦП до следующего прерывания
+        __asm__ volatile ("hlt"); // Останавливаем CPU до следующего прерывания
     }
 }

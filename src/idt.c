@@ -115,8 +115,8 @@ void pic_remap(int offset1, int offset2) {
     a2 = inb(PIC2_DATA);
 
     // ICW1: Начало инициализации (Cascade mode)
-    outb(PIC1_COMMAND, 0x11);
-    outb(PIC2_COMMAND, 0x11);
+    outb(PIC1_COMMAND, 0x01);
+    outb(PIC2_COMMAND, 0x02);
 
     // ICW2: Сдвиг векторов (Critical step!)
     outb(PIC1_DATA, offset1);
@@ -314,4 +314,6 @@ void idt_install(void) {
 
     // 4. Загружаем IDT в процессор
     lidt((void*)&idtp);
-}
+} 
+pic_enable_irq(0);
+pic_enable_irq(1); 

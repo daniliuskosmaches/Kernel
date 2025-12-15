@@ -27,6 +27,8 @@ add_executable(untitled2 main.c
         src/io.h
         src/isr.h
         src/timer.h
+        src/shell.h
+        src/shell.c
 
 
 )

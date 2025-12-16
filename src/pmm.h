@@ -6,9 +6,10 @@
 #define PMM_H
 
 #include "stdint.h"
+#include "multiboot.h"
 
 // Функции для управления физической памятью
-extern void pmm_init(multiboot_info_t *mbi);
+void pmm_init(multiboot_info_t *mbi);
 void *pmm_alloc_page(void);
 void pmm_free_page(void *p);
 

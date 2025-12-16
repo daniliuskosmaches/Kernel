@@ -3,7 +3,8 @@
 //
 // src/multiboot.h
 
-// Убедитесь, что эта структура соответствует тому, что ожидает ваш Multiboot
+#ifndef UNTITLED2_MULTIBOOT_H // <-- НАЧАЛО ЗАЩИТЫ
+#define UNTITLED2_MULTIBOOT_H
 
 // Структура для записи в таблице карты памяти
 struct multiboot_mmap_entry {
@@ -25,7 +26,5 @@ typedef struct {
 #define MULTIBOOT_BOOTLOADER_MAGIC 0x2BADB002
 #define MULTIBOOT_FLAG_MMAP 0x00000040 // Флаг, указывающий на наличие карты памяти (бит 6)
 
-#ifndef UNTITLED2_MULTIBOOT_H
-#define UNTITLED2_MULTIBOOT_H
 
-#endif //UNTITLED2_MULTIBOOT_H
+#endif //UNTITLED2_MULTIBOOT_H <-- КОНЕЦ ЗАЩИТЫ

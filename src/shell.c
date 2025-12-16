@@ -3,8 +3,6 @@
 #include "shell.h"
 #include "vga.h"
 #include "string.h"
-#include "kheap.h"
-#include "pmm.h"
 #include "timer.h"
 
 #define MAX_COMMAND_LENGTH 256

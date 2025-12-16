@@ -128,7 +128,7 @@ void pic_disable_irq(uint8_t irq) {
 // ============================================================
 // ГЛАВНЫЙ C-ОБРАБОТЧИК ВСЕХ ПРЕРЫВАНИЙ
 // ============================================================
-void isr_handler_c(struct registers *regs) {
+void isr_handler_c(struct registers *regs, uint8_t int_no) {
     // 1. Если есть зарегистрированный обработчик, вызываем его
     if (interrupt_handlers[regs->int_no] != 0) {
         void (*handler)(registers_t *regs) = interrupt_handlers[regs->int_no];

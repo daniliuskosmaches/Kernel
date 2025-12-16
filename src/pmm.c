@@ -2,7 +2,7 @@
 // Created by nazar on 09.12.25.
 //
 // src/pmm.c
-#include "multiboot.h"// Если вы используете заголовочный файл для PMM
+#include "pmm.h"// Если вы используете заголовочный файл для PMM
 #define PAGE_SIZE 4096
 #define MAX_PHYS_MEM 0x40000000 // 1 GB (для примера)
 #define MAX_PAGES (MAX_PHYS_MEM / PAGE_SIZE)

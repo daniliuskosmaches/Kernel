@@ -8,7 +8,6 @@
 #include "task.h"
 #include "kheap.h"
 #include "pmm.h"
-#include "keyboard.h"
 #include "shell.h"
 
 // Объявления внешних функций
@@ -81,7 +80,7 @@ void kmain(unsigned int multiboot_magic, multiboot_info_t *mbi) {
     kheap_init();
 
     // Проверяем, работает ли kmalloc
-    void* test_ptr = kmalloc(64);
+    void* test_ptr = kmalloc(32);
     if (test_ptr == 0) {
         terminal_write_string("FAILED\n");
         terminal_write_string("ERROR: kmalloc() returned NULL!\n");
@@ -106,10 +105,15 @@ void kmain(unsigned int multiboot_magic, multiboot_info_t *mbi) {
 
     // ========================================================
     // ФАЗА 8: ИНИЦИАЛИЗАЦИЯ КЛАВИАТУРЫ (IRQ1)
+
     // ========================================================
-    terminal_write_string("[8/9] Installing Keyboard... ");
-    init_keyboard();
+    terminal_write_string("[8/9] Initializing idt... ");
+    idt_install();
     terminal_write_string("OK\n");
+
+
+
+
 
     // ========================================================
     // ФАЗА 9: ВКЛЮЧЕНИЕ ПРЕРЫВАНИЙ
@@ -117,6 +121,15 @@ void kmain(unsigned int multiboot_magic, multiboot_info_t *mbi) {
     terminal_write_string("[9/9] Enabling Interrupts... ");
     __asm__ volatile ("sti");
     terminal_write_string("OK\n\n");
+    terminal_write_string("initializing the keyboard... ");
+    init_keyboard();
+    terminal_write_string("OK\n\n");
+
+
+    terminal_write_string("========================================\n");
+    terminal_write_string("        System Initialization          \n");
+    terminal_write_string("              Complete!                \n");
+    terminal_write_string("========================================\n\n");
 
     // ========================================================
     // ФИНАЛЬНОЕ СООБЩЕНИЕ
@@ -138,7 +151,5 @@ void kmain(unsigned int multiboot_magic, multiboot_info_t *mbi) {
     // ГЛАВНЫЙ ЦИКЛ ЯДРА
     // ========================================================
     // Ядро просто ждет прерываний (таймер, клавиатура)
-    for (;;) {
-        __asm__ volatile ("hlt"); // Останавливаем CPU до следующего прерывания
-    }
+
 }

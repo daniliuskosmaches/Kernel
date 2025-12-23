@@ -66,7 +66,7 @@ typedef struct {
 // ----------------------------------------------------
 // Это структура, которую мы выделяем через pmm_alloc_page().
 // Поле 'entries' делает код в vmm.c более читаемым (e.g., pde->entries[i])
-
+uint32_t vmm_get_cr3(void);
 
 
 // ----------------------------------------------------
@@ -76,6 +76,7 @@ void vmm_init(void);
 void vmm_map_page(uint32_t virt_addr, uint32_t phys_addr, uint32_t flags);
 void vmm_unmap_page(uint32_t virt_addr); // Опционально, но полезно
 void vmm_switch_directory(page_directory_t *dir);
+
 
 
 #endif

@@ -19,7 +19,7 @@ typedef __INT32_TYPE__  int32_t;
 // typedef signed int int32_t;
 
 typedef unsigned long long uint64_t;
-typedef signed long long   int64_t;
+typedef signed long long  int64_t;
 
 typedef __SIZE_TYPE__ size_t; // Тип для размеров (обычно unsigned int или unsigned long)
 

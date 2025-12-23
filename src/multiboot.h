@@ -1,30 +1,40 @@
-//
-// Created by nazar on 09.12.25.
-//
-// src/multiboot.h
+#ifndef MULTIBOOT_H
+#define MULTIBOOT_H
 
-#ifndef UNTITLED2_MULTIBOOT_H // <-- НАЧАЛО ЗАЩИТЫ
-#define UNTITLED2_MULTIBOOT_H
+#include "stdint.h"
 
-// Структура для записи в таблице карты памяти
-struct multiboot_mmap_entry {
-    unsigned int size;
-    unsigned long long addr;  // 64-битный адрес
-    unsigned long long len;   // 64-битная длина
-    unsigned int type;        // Тип: 1 = Доступно (Available)
-} __attribute__((packed));
-
-// Главная информационная структура
-typedef struct {
-    unsigned int flags;       // Флаги (важен бит 6 для карты памяти)
-
-    unsigned int mmap_length; // Общая длина карты памяти
-    unsigned int mmap_addr;   // Адрес начала списка записей
-} multiboot_info_t;
-
-// Магическое число Multiboot
 #define MULTIBOOT_BOOTLOADER_MAGIC 0x2BADB002
-#define MULTIBOOT_FLAG_MMAP 0x00000040 // Флаг, указывающий на наличие карты памяти (бит 6)
+#define MULTIBOOT_FLAG_MMAP 0x00000040
 
+typedef struct {
+    uint32_t flags;
+    uint32_t mem_lower;
+    uint32_t mem_upper;
+    uint32_t boot_device;
+    uint32_t cmdline;
+    uint32_t mods_count;
+    uint32_t mods_addr;
+    uint32_t syms[4];
+    uint32_t mmap_length; // Смещение 44
+    uint32_t mmap_addr;   // Смещение 48
+    uint32_t drives_length;
+    uint32_t drives_addr;
+    uint32_t config_table;
+    uint32_t boot_loader_name;
+    uint32_t apm_table;
+    uint32_t vbe_control_info;
+    uint32_t vbe_mode_info;
+    uint16_t vbe_mode;
+    uint16_t vbe_interface_seg;
+    uint16_t vbe_interface_off;
+    uint16_t vbe_interface_len;
+} __attribute__((packed)) multiboot_info_t;
 
-#endif //UNTITLED2_MULTIBOOT_H <-- КОНЕЦ ЗАЩИТЫ
+typedef struct {
+    uint32_t size;
+    uint64_t addr;
+    uint64_t len;
+    uint32_t type;
+} __attribute__((packed)) multiboot_memory_map_t;
+
+#endif

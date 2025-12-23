@@ -1,12 +1,10 @@
-// src/kheap.c
-// Файл содержит минимально необходимые заглушки для успешной линковки.
-// src/kheap.c - ПОЛНО
-// src/kheap.c - ПОЛНОЦЕННАЯ РЕАЛИЗАЦИЯ КУЧИ
+// src/kheap.c - ИСПРАВЛЕННАЯ ВЕРСИЯ
 
 #include "kheap.h"
 #include "vmm.h"
 #include "pmm.h"
 #include "string.h"
+#include "vga.h"  // Для terminal_write_string
 
 // Диапазон виртуальных адресов для кучи
 #define KHEAP_START     0xC0400000  // Начало кучи (после 4MB identity mapping)
@@ -38,25 +36,64 @@ static heap_block_t *free_list = 0;
 // ИНИЦИАЛИЗАЦИЯ КУЧИ
 // ============================================================
 void kheap_init(void) {
+    terminal_write_string("  -> Heap range: 0x");
+    terminal_write_hex(KHEAP_START);
+    terminal_write_string(" - 0x");
+    terminal_write_hex(KHEAP_START + HEAP_MIN_SIZE);
+    terminal_write_string("\n");
+
     heap_start = KHEAP_START;
     heap_end = KHEAP_START + HEAP_MIN_SIZE;
 
     // Отображаем начальную память кучи через VMM
+    terminal_write_string("  -> Mapping heap pages... ");
+    uint32_t pages_mapped = 0;
+
     for (uint32_t addr = heap_start; addr < heap_end; addr += PAGE_SIZE) {
         uint32_t phys = (uint32_t)pmm_alloc_page();
+
         if (phys == 0) {
-            // Критическая ошибка - не хватает физической памяти
-            return;
+            // КРИТИЧЕСКАЯ ОШИБКА - PMM не может выделить память!
+            terminal_write_string("\n");
+            terminal_write_string("CRITICAL ERROR: PMM failed to allocate page!\n");
+            terminal_write_string("Pages mapped before failure: ");
+            terminal_write_hex(pages_mapped);
+            terminal_write_string("\n");
+            terminal_write_string("Virtual address: 0x");
+            terminal_write_hex(addr);
+            terminal_write_string("\n");
+
+            // НЕ ВЫХОДИМ! Останавливаем систему с диагностикой
+            for(;;) __asm__ volatile("cli; hlt");
         }
+
         vmm_map_page(addr, phys, PAGE_PRESENT | PAGE_RW);
+        pages_mapped++;
     }
 
+    terminal_write_hex(pages_mapped);
+    terminal_write_string(" pages\n");
+
     // Инициализируем первый свободный блок
+    terminal_write_string("  -> Initializing free list... ");
     free_list = (heap_block_t*)heap_start;
     free_list->size = HEAP_MIN_SIZE - BLOCK_HEADER_SIZE;
     free_list->magic = HEAP_MAGIC;
     free_list->next = 0;
     free_list->is_free = 1;
+
+    terminal_write_string("done\n");
+
+    // КРИТИЧЕСКАЯ ПРОВЕРКА
+    if (free_list == 0) {
+        terminal_write_string("FATAL: free_list is NULL after initialization!\n");
+        for(;;) __asm__ volatile("cli; hlt");
+    }
+
+    if (free_list->magic != HEAP_MAGIC) {
+        terminal_write_string("FATAL: Invalid heap magic after initialization!\n");
+        for(;;) __asm__ volatile("cli; hlt");
+    }
 }
 
 // ============================================================
@@ -106,6 +143,12 @@ static int expand_heap(uint32_t new_size) {
 // ВЫДЕЛЕНИЕ ПАМЯТИ (kmalloc)
 // ============================================================
 void* kmalloc(size_t size) {
+    // КРИТИЧЕСКАЯ ПРОВЕРКА
+    if (free_list == 0) {
+        terminal_write_string("ERROR: kmalloc called but free_list is NULL!\n");
+        return 0;
+    }
+
     if (size == 0) return 0;
 
     // Выравниваем размер
@@ -119,6 +162,7 @@ void* kmalloc(size_t size) {
         // Проверяем магическое число
         if (current->magic != HEAP_MAGIC) {
             // Повреждение кучи!
+            terminal_write_string("HEAP CORRUPTION: Invalid magic in block!\n");
             return 0;
         }
 
@@ -172,6 +216,7 @@ void kfree(void* ptr) {
     // Проверяем магическое число
     if (block->magic != HEAP_MAGIC) {
         // Повреждение кучи или некорректный указатель
+        terminal_write_string("WARNING: kfree called with invalid pointer!\n");
         return;
     }
 

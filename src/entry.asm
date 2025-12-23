@@ -20,6 +20,8 @@ dd MBOOT_CHECKSUM
 section .text
 global _start
 extern kmain
+global vmm_get_cr3
+
 
 _start:
     ; 1. Настройка Стека:
@@ -43,6 +45,10 @@ _start:
 
 ; --- Данные ---
 
+
+
 section .bss
 resb 8192
 stack_top:
+
+

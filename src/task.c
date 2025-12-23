@@ -8,7 +8,7 @@
 #include "kernel.h"
 #include "string.h"
 
-#include "vmm.h" // Для получения pg_dir
+
 extern void switch_to_task(uint32_t eip, uint32_t esp, uint32_t ebp, uint32_t pg_dir);
 // Глобальные переменные определяются здесь
 task_t *current_task = 0;
@@ -20,30 +20,25 @@ static uint32_t next_pid = 1;
 // -----------------------------------------------------------------
 // Инициализация подсистемы многозадачности
 // -----------------------------------------------------------------
+
 void task_init(void) {
-    // 1. Включаем VMM (если еще не включен)
-    // (Этот шаг обычно делается в kernel.c до вызова task_init)
-
-    // 2. Создаем первую задачу (имитируем, что ядро — это процесс ID=1)
-
-    // Выделяем память для структуры PCB ядра
     current_task = (task_t*)kmalloc(sizeof(task_t));
+    memset(current_task, 0, sizeof(task_t));
 
-    // Заполняем поля первой задачи
     current_task->pid = next_pid++;
-    current_task->esp = 0; // ESP/EBP не имеют значения для первой задачи
-    current_task->ebp = 0;
-    current_task->eip = 0;
 
-    // Получаем адрес Page Directory ядра
-    // (Вам нужно убедиться, что у вас есть функция, возвращающая CR3 или адрес каталога)
-    // Например: current_task->pg_dir_phys = vmm_get_cr3();
+    // Получаем РЕАЛЬНЫЕ значения регистров текущего стека
+    uint32_t esp, ebp;
+    __asm__ volatile("mov %%esp, %0" : "=r"(esp));
+    __asm__ volatile("mov %%ebp, %0" : "=r"(ebp));
 
-    // Первая задача указывает сама на себя
-    current_task->next = current_task;
+    current_task->esp = esp;
+    current_task->ebp = ebp;
+    current_task->pg_dir_phys = vmm_get_cr3(); // Получаем текущий CR3
+    current_task->next = 0;
+
     ready_queue = current_task;
 }
-
 
 // -----------------------------------------------------------------
 // Переключение задач (Context Switch)

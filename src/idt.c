@@ -1,5 +1,4 @@
 // src/idt.c - ПОЛНАЯ ИСПРАВЛЕННАЯ ВЕРСИЯ
-
 #include "idt.h"
 #include "isr.h"
 #include "vga.h"
@@ -38,6 +37,9 @@ extern void isr16(); extern void isr17(); extern void isr18(); extern void isr19
 extern void isr20(); extern void isr21(); extern void isr22(); extern void isr23();
 extern void isr24(); extern void isr25(); extern void isr26(); extern void isr27();
 extern void isr28(); extern void isr29(); extern void isr30(); extern void isr31();
+
+extern void isr128(); // Системный вызов (INT 0x80)
+
 
 // Аппаратные прерывания (IRQ 0-15)
 extern void irq0(); extern void irq1(); extern void irq2(); extern void irq3();
@@ -246,6 +248,9 @@ void (*irq_vectors[16])(void) = {
 // ГЛАВНАЯ ФУНКЦИЯ УСТАНОВКИ IDT
 // ============================================================
 void idt_install(void) {
+
+    idt_set_gate(128, (unsigned int)isr128, 0x08, 0xEE);
+
     // 1. Настраиваем указатель IDT
     idtp.limit = (sizeof(struct idt_entry) * 256) - 1;
     idtp.base = (unsigned int)&idt;

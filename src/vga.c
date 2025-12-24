@@ -128,11 +128,19 @@ void terminal_write_hex(uint32_t n) {
     terminal_write_string(buffer);
 }
 
-void terminal_backspace(void) {
+void terminal_backspace() {
     if (terminal_column > 0) {
-        terminal_column--;
-        terminal_put_entry_at(' ', terminal_color, terminal_column, terminal_row);
+        terminal_column--; // Возвращаемся на одну клетку назад
+    } else if (terminal_row > 0) {
+        terminal_row--;    // Или на строку выше
+        terminal_column = 79;
     }
+
+    // Рисуем пустой символ (пробел) поверх старого
+    terminal_put_entry_at(' ', terminal_color, terminal_column, terminal_row);
+
+    // ВАЖНО: Курсор в VGA обновляется автоматически, если ты настроил
+    // аппаратный курсор, иначе просто обновляй координаты.
 }
 
 void terminal_clear_screen(void) {

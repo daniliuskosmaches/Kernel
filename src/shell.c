@@ -33,20 +33,29 @@ void shell_init(void) {
 
 void shell_handle_char(char c) {
     if (c == '\n') {
-        terminal_put_char('\n');
+        terminal_put_char('\n'); // Переход на новую строку на экране
+
         if (command_position > 0) {
-            command_buffer[command_position] = '\0';
-            shell_execute_command(command_buffer);
-            command_position = 0;
-            memset(command_buffer, 0, MAX_COMMAND_LENGTH);
+            command_buffer[command_position] = '\0'; // Закрываем строку
+            shell_execute_command(command_buffer);   // Выполняем
+            command_position = 0;                    // Очищаем позицию
         }
-        terminal_write_string("myos> ");
-    } else if (c == '\b' && command_position > 0) {
-        command_position--;
-        terminal_backspace();
-    } else if (c >= 32 && c < 127 && command_position < MAX_COMMAND_LENGTH - 1) {
-        command_buffer[command_position++] = c;
-        terminal_put_char(c);
+
+        terminal_write_string("myos> "); // Снова выводим приглашение
+    }
+    else if (c == '\b') { // Backspace
+        if (command_position > 0) {
+            command_position--;
+            // Тут нужно вызвать функцию удаления символа с экрана (напишем ниже)
+            terminal_write_string("\b \b");
+        }
+    }
+    else {
+        // Обычный символ: ПЕЧАТАЕМ ЕГО И СОХРАНЯЕМ
+        if (command_position < MAX_COMMAND_LENGTH - 1) {
+            terminal_put_char(c);             // ВАЖНО: выводим на экран сразу!
+            command_buffer[command_position++] = c;
+        }
     }
 }
 

@@ -9,19 +9,14 @@
 #include "kheap.h"
 #include "pmm.h"
 #include "shell.h"
-
-// Объявления внешних функций
-extern void pmm_init(multiboot_info_t *mbi);
-extern void vmm_init(void);
-extern void shell_init(void);
-extern void kheap_init(void);
-extern void init_keyboard(void);
-extern void task_init(void);
+#include "syscall.h"
 
 // ============================================================
 // ГЛАВНАЯ ФУНКЦИЯ ЯДРА
 // ============================================================
 void kmain(unsigned int multiboot_magic, multiboot_info_t *mbi) {
+
+    register_interrupt_handler(128, syscall_handler);
 
     // ========================================================
     // ФАЗА 1: ИНИЦИАЛИЗАЦИЯ ТЕРМИНАЛА

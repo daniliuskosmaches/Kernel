@@ -56,6 +56,8 @@ ISR_NOERRCODE 29
 ISR_NOERRCODE 30
 ISR_NOERRCODE 31
 
+
+ISR_NOERRCODE 128
 ; --- Аппаратные прерывания (IRQ 0-15 -> ISR 32-47) ---
 
 %macro IRQ 2

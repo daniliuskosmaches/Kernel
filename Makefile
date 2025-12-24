@@ -8,7 +8,7 @@ QEMU = qemu-system-i386
 
 # --- Файлы и Пути ---
 CFLAGS = -std=gnu99 -ffreestanding -O2 -Wall -Wextra -nostdlib -nostdinc -I.
-OBJECTS      = src/entry.o src/kernel.o src/asm_io.o src/idt.o src/isr.o src/vga.o src/timer.o src/pmm.o src/vmm.o src/task.o src/kheap.o src/string.o src/task_switch.o src/shell.o src/keyboard.o
+OBJECTS      = src/entry.o src/kernel.o src/asm_io.o src/idt.o src/isr.o src/vga.o src/timer.o src/pmm.o src/vmm.o src/task.o src/kheap.o src/string.o src/task_switch.o src/shell.o src/keyboard.o src/syscall.o
 LINKER_SCRIPT = linker.ld
 KERNEL_ELF   = kernel.elf
 KERNEL_BIN   = kernel.bin

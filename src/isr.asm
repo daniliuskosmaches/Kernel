@@ -86,36 +86,27 @@ IRQ 15, 47
 ; --- Общий обработчик ---
 
 isr_common:
-    ; 1. Сохраняем все регистры
-    pusha                ; EDI, ESI, EBP, ESP, EBX, EDX, ECX, EAX
+    pusha                    ; Сохраняем EAX, ECX, EDX, EBX, ESP, EBP, ESI, EDI
 
-    ; 2. Сохраняем текущий сегмент данных
-    mov ax, ds
+    mov ax, ds               ; Сохраняем сегмент данных
     push eax
 
-    ; 3. Устанавливаем сегмент данных ядра
-    mov ax, 0x10
+    mov ax, 0x10             ; Загружаем сегмент данных ядра
     mov ds, ax
     mov es, ax
     mov fs, ax
     mov gs, ax
 
-    ; 4. Передаем указатель на структуру регистров (текущий ESP) в Си
-    mov eax, esp
-    push eax
-
+    push esp                 ; Передаем указатель на структуру registers_t в Си
     call isr_handler_c
+    add esp, 4               ; Очищаем стек от аргумента (указателя)
 
-    ; 5. Очистка после вызова
-    add esp, 4
-
-    pop eax              ; Восстанавливаем DS
+    pop eax                  ; Восстанавливаем сегменты
     mov ds, ax
     mov es, ax
     mov fs, ax
     mov gs, ax
 
-    popa                 ; Восстанавливаем регистры
-    add esp, 8           ; Очищаем int_no и error_code
-
-    iret                 ; Возврат из прерывания
+    popa                     ; Восстанавливаем регистры общего назначения
+    add esp, 8               ; Очищаем стек от номера прерывания и кода ошибки! (КРИТИЧНО)
+    iret                     ; Возврат из прерывания

@@ -7,6 +7,7 @@
 #include "task.h"
 #include "kernel.h"
 #include "string.h"
+#include "vmm.h"
 
 
 extern void switch_to_task(uint32_t eip, uint32_t esp, uint32_t ebp, uint32_t pg_dir);

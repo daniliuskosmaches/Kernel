@@ -55,12 +55,7 @@ void kmain(unsigned int multiboot_magic, multiboot_info_t *mbi) {
 
     terminal_write_string("OK\n");
 
-    // ========================================================
-    // ФАЗА 3: ИНИЦИАЛИЗАЦИЯ IDT
-    // ========================================================
-    terminal_write_string("[2/9] Installing IDT... ");
-    idt_install();
-    terminal_write_string("OK\n");
+
 
     // ========================================================
     // ФАЗА 4: ИНИЦИАЛИЗАЦИЯ УПРАВЛЕНИЯ ПАМЯТЬЮ
@@ -103,27 +98,32 @@ void kmain(unsigned int multiboot_magic, multiboot_info_t *mbi) {
     time_install(100);
     terminal_write_string("OK\n");
 
-    // ========================================================
-    // ФАЗА 8: ИНИЦИАЛИЗАЦИЯ КЛАВИАТУРЫ (IRQ1)
 
     // ========================================================
-    terminal_write_string("[8/9] Initializing idt... ");
+    // ФАЗА 9: ИНИЦИАЛИЗАЦИЯ КЛАВИАТУРЫ (IRQ1)
+
+    // ========================================================
+    terminal_write_string("[9/9] Initializing idt... ");
     idt_install();
     terminal_write_string("OK\n");
 
-
-
-
-
     // ========================================================
-    // ФАЗА 9: ВКЛЮЧЕНИЕ ПРЕРЫВАНИЙ
+    // ФАЗА 8: ВКЛЮЧЕНИЕ ПРЕРЫВАНИЙ
     // ========================================================
-    terminal_write_string("[9/9] Enabling Interrupts... ");
+
+    terminal_write_string("[8/9] Enabling Interrupts... ");
     __asm__ volatile ("sti");
     terminal_write_string("OK\n\n");
     terminal_write_string("initializing the keyboard... ");
     init_keyboard();
     terminal_write_string("OK\n\n");
+
+
+
+
+
+
+
 
 
     terminal_write_string("========================================\n");
@@ -151,5 +151,8 @@ void kmain(unsigned int multiboot_magic, multiboot_info_t *mbi) {
     // ГЛАВНЫЙ ЦИКЛ ЯДРА
     // ========================================================
     // Ядро просто ждет прерываний (таймер, клавиатура)
+    for(;;) {
+        __asm__ volatile ("hlt");
+    }
 
 }

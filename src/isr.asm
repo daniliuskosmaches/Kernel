@@ -56,8 +56,7 @@ ISR_NOERRCODE 29
 ISR_NOERRCODE 30
 ISR_NOERRCODE 31
 
-
-ISR_NOERRCODE 128
+ISR_NOERRCODE 128  ; Программное прерывание для системных вызовов
 ; --- Аппаратные прерывания (IRQ 0-15 -> ISR 32-47) ---
 
 %macro IRQ 2
@@ -85,30 +84,32 @@ IRQ 13, 45
 IRQ 14, 46
 IRQ 15, 47
 
-; --- Общий обработчик ---
+
+global idt_load
+extern idtp ; Указываем, что структура idtp объявлена в Си
+
+idt_load:
+    lidt [idtp] ; Загружаем адрес таблицы IDT в специальный регистр процессора
+    ret         ; Возвращаемся в Си-код
+
 
 isr_common:
-    pusha                    ; Сохраняем EAX, ECX, EDX, EBX, ESP, EBP, ESI, EDI
+    pusha               ; Сохраняем регистры
+    mov ax, ds
+    push eax            ; Сохраняем сегмент данных
 
-    mov ax, ds               ; Сохраняем сегмент данных
-    push eax
-
-    mov ax, 0x10             ; Загружаем сегмент данных ядра
+    mov ax, 0x10        ; Сегмент данных ядра
     mov ds, ax
     mov es, ax
-    mov fs, ax
-    mov gs, ax
 
-    push esp                 ; Передаем указатель на структуру registers_t в Си
+    push esp            ; Передаем указатель на структуру registers_t
     call isr_handler_c
-    add esp, 4               ; Очищаем стек от аргумента (указателя)
+    add esp, 4          ; Очищаем аргумент функции
 
-    pop eax                  ; Восстанавливаем сегменты
+    pop eax
     mov ds, ax
     mov es, ax
-    mov fs, ax
-    mov gs, ax
+    popa                ; Восстанавливаем регистры
 
-    popa                     ; Восстанавливаем регистры общего назначения
-    add esp, 8               ; Очищаем стек от номера прерывания и кода ошибки! (КРИТИЧНО)
-    iret                     ; Возврат из прерывания
+    add esp, 8          ; Очищаем код ошибки и номер прерывания (ВАЖНО!)
+    iret                ; Возврат из прерывания

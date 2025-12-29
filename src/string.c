@@ -1,9 +1,11 @@
 //
 // Created by nazar on 10.12.25.
 //
+
 #include "stddef.h"
 #include "string.h"
 #include "vga.h"
+
 
 void *memset(void *s, int c, size_t n) {
     unsigned char *ptr = s;

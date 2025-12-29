@@ -15,6 +15,13 @@
 // ГЛАВНАЯ ФУНКЦИЯ ЯДРА
 // ============================================================
 void kmain(unsigned int multiboot_magic, multiboot_info_t *mbi) {
+    // Регистрируем обработчик системных вызовов (int 0x80)
+
+
+
+
+    idt_install();
+
 
     register_interrupt_handler(128, syscall_handler);
 

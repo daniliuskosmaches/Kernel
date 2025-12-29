@@ -5,6 +5,7 @@
 #include "string.h"
 #include "system.h"
 
+
 // ============================================================
 // ГЛОБАЛЬНЫЕ ОПРЕДЕЛЕНИЯ
 // ============================================================
@@ -36,6 +37,7 @@ extern void isr12(); extern void isr13(); extern void isr14(); extern void isr15
 extern void isr16(); extern void isr17(); extern void isr18(); extern void isr19();
 extern void isr20(); extern void isr21(); extern void isr22(); extern void isr23();
 extern void isr24(); extern void isr25(); extern void isr26(); extern void isr27();
+
 extern void isr28(); extern void isr29(); extern void isr30(); extern void isr31();
 
 extern void isr128(); // Системный вызов (INT 0x80)
@@ -56,6 +58,25 @@ void idt_set_gate(unsigned char num, unsigned long base, unsigned short sel, uns
     idt[num].selector = sel;
     idt[num].zero     = 0;
     idt[num].flags    = flags;  // 0x8E = Present, Ring 0, 32-bit Interrupt Gate
+}
+
+
+void isr_handler_c(registers_t *regs) {
+    // Вызываем обработчик, если он зарегистрирован
+    if (interrupt_handlers[regs->int_no] != 0) {
+        void (*handler)(registers_t *r) = interrupt_handlers[regs->int_no];
+        handler(regs);
+    }
+
+    // Посылаем EOI (End of Interrupt) в PIC
+    if (regs->int_no >= 40) {
+        outb(0xA0, 0x20); // Slave
+    }
+    outb(0x20, 0x20);     // Master
+}
+
+void register_interrupt_handler(uint8_t n, void (*handler)(registers_t *)) {
+    interrupt_handlers[n] = handler;
 }
 
 // ============================================================
@@ -127,48 +148,9 @@ void pic_disable_irq(uint8_t irq) {
     outb(port, value);
 }
 
-// ============================================================
-// ГЛАВНЫЙ C-ОБРАБОТЧИК ВСЕХ ПРЕРЫВАНИЙ
-// ============================================================
-void isr_handler_c(struct registers *regs, uint8_t int_no) {
-    // 1. Если есть зарегистрированный обработчик, вызываем его
-    if (interrupt_handlers[regs->int_no] != 0) {
-        void (*handler)(registers_t *regs) = interrupt_handlers[regs->int_no];
-        handler(regs);
-    } else {
-        // 2. Для необработанных исключений (0-31) выводим ошибку
-        if (regs->int_no < 0x20) {
-            terminal_write_string("\n=== UNHANDLED EXCEPTION ===\n");
-            terminal_write_string("Exception: 0x");
-            terminal_write_hex(regs->int_no);
-            terminal_write_string("\nEIP: 0x");
-            terminal_write_hex(regs->eip);
-            terminal_write_string("\nError Code: 0x");
-            terminal_write_hex(regs->err_code);
-            terminal_write_string("\n");
 
-            // Останавливаем систему
-            for(;;) __asm__ volatile("cli; hlt");
-        }
-    }
 
-    // 3. Отправляем EOI (End of Interrupt) контроллеру прерываний
-    // Только для аппаратных прерываний (IRQ 0-15, векторы 0x20-0x2F)
-    if (regs->int_no >= 0x20 && regs->int_no <= 0x2F) {
-        // Если прерывание от Slave PIC (IRQ 8-15), отправляем EOI обоим
-        if (regs->int_no >= 0x28) {
-            outb(PIC2_COMMAND, 0x20);  // EOI для Slave PIC
-        }
-        outb(PIC1_COMMAND, 0x20);  // EOI для Master PIC
-    }
-}
 
-// ============================================================
-// РЕГИСТРАЦИЯ ОБРАБОТЧИКА ПРЕРЫВАНИЯ
-// ============================================================
-void register_interrupt_handler(uint8_t irq_number, void (*handler)(registers_t *regs)) {
-    interrupt_handlers[irq_number] = handler;
-}
 
 // ============================================================
 // ОБРАБОТЧИК PAGE FAULT (Исключение 14)
@@ -249,14 +231,15 @@ void (*irq_vectors[16])(void) = {
 // ============================================================
 void idt_install(void) {
 
-    idt_set_gate(128, (unsigned int)isr128, 0x08, 0xEE);
-
-    // 1. Настраиваем указатель IDT
     idtp.limit = (sizeof(struct idt_entry) * 256) - 1;
     idtp.base = (unsigned int)&idt;
 
-    // 2. Очищаем таблицу IDT
+    // 2. КРИТИЧНО: Сначала ОЧИЩАЕМ всю таблицу в ноль
     memset(&idt, 0, sizeof(struct idt_entry) * 256);
+
+
+
+    // 2. Очищаем таблицу IDT
 
     // 3. Устанавливаем все 32 исключения процессора (ISR 0-31)
     for (int i = 0; i < 32; i++) {
@@ -274,9 +257,10 @@ void idt_install(void) {
         idt_set_gate(i + 0x20, (unsigned int)irq_vectors[i], KERNEL_CS, 0x8E);
     }
 
-    // 7. Загружаем IDT в процессор
-    lidt((void*)&idtp);
 
+
+    idt_set_gate(128, (unsigned int)isr128, 0x08, 0xEE);
     // ВАЖНО: НЕ включаем IRQ здесь!
     // Они будут включены позже в time_install() и init_keyboard()
+    idt_load();
 }

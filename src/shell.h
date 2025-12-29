@@ -38,7 +38,7 @@ void shell_print_prompt(void);
  * Парсит и выполняет команду.
  * * ИСПРАВЛЕНИЕ: Это объявление решает ошибку shell.c:53:13
  */
-void shell_execute_command(const char* command);
+void shell_execute_command(char* command);
 
 
 // ============================================================

@@ -18,6 +18,7 @@ void isr_handler_c(registers_t *regs);
 
 void idt_install(void);
 void idt_load(void);
+void register_interrupt_handler(uint8_t n, void (*handler)(registers_t *regs));
 
 
 #endif // ISR_H

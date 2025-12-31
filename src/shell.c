@@ -1,83 +1,71 @@
 #include "shell.h"
 #include "vga.h"
 #include "string.h"
-#include "timer.h"
-#include <stddef.h>
+
 
 #define MAX_COMMAND_LENGTH 256
 
 static char command_buffer[MAX_COMMAND_LENGTH];
 static int command_position = 0;
 
-// --- РЕАЛИЗАЦИЯ КОМАНД ---
+// --- ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ (LIBC) ---
+
 
 static void cmd_help(void) {
-    terminal_write_string("Available commands: list, say, sysinfo, uptime, clear, help\n");
+    terminal_write_string("Available: list, say, sysinfo, uptime, clear, help\n");
 }
 
 static void cmd_clear(void) {
-    terminal_initialize();
+    terminal_clear_screen();
 }
 
 static void cmd_echo(const char* args) {
-    terminal_write_string(args);
-    terminal_write_string("\n");
+    if (*args == '\0') {
+        terminal_write_string("\n");
+    } else {
+        terminal_write_string(args);
+        terminal_write_string("\n");
+    }
 }
 
-static void cmd_list(void) {
-    terminal_write_string("bin/  dev/  etc/  usr/\n");
-}
-
-static void cmd_sysinfo(void) {
-    terminal_write_string("OS: MyOS v1.0\nArch: i686-elf\n");
-}
-
-static void cmd_uptime(void) {
-    terminal_write_string("Uptime functionality active.\n");
-}
-
-static void print_not_found(const char* command) {
-    terminal_write_string(command);
-    terminal_write_string(": command not found\n");
-}
-
-// --- ОСНОВНАЯ ЛОГИКА ---
+// --- ПАРСЕР И ИСПОЛНЕНИЕ ---
 
 void shell_init(void) {
     command_position = 0;
     memset(command_buffer, 0, MAX_COMMAND_LENGTH);
-    terminal_write_string("MyOS Shell v1.0. Type 'help' to start.\n");
+    terminal_write_string("MyOS Shell v1.1. Type 'help' to start.\n");
     terminal_write_string("myos> ");
 }
 
-// Убрали const, чтобы соответствовать логике парсера
-void shell_execute_command(char* command) {
-    while (*command == ' ') command++;
-    if (*command == '\0') return;
+void shell_execute_command(char* cmd_line) {
+    // 1. Пропускаем начальные пробелы
+    while (*cmd_line == ' ') cmd_line++;
+    if (*cmd_line == '\0') return;
 
-    char* end_of_cmd = command;
-    while (*end_of_cmd && *end_of_cmd != ' ') end_of_cmd++;
+    // 2. Отделяем имя команды от аргументов
+    char* args = cmd_line;
+    while (*args != ' ' && *args != '\0') {
+        args++;
+    }
 
-    char saved_char = *end_of_cmd;
-    *end_of_cmd = '\0'; // Разделяем команду и аргументы
+    if (*args == ' ') {
+        *args = '\0'; // Завершаем строку с именем команды
+        args++;
+        while (*args == ' ') args++; // Пропускаем пробелы перед аргументами
+    }
 
-    char* args = (saved_char == ' ') ? end_of_cmd + 1 : end_of_cmd;
-    while (*args == ' ') args++;
-
-    if (strncmp(command, "help", 4) == 0) {
+    // 3. Сравнение команд через strcmp (безопаснее strncmp)
+    if (strcmp(cmd_line, "help") == 0) {
         cmd_help();
-    } else if (strncmp(command, "clear", 5) == 0) {
+    } else if (strcmp(cmd_line, "clear") == 0) {
         cmd_clear();
-    } else if (strncmp(command, "say", 3) == 0) {
+    } else if (strcmp(cmd_line, "say") == 0) {
         cmd_echo(args);
-    } else if (strncmp(command, "list", 4) == 0) {
-        cmd_list();
-    } else if (strncmp(command, "sysinfo", 7) == 0) {
-        cmd_sysinfo();
-    } else if (strncmp(command, "uptime", 6) == 0) {
-        cmd_uptime();
+    } else if (strcmp(cmd_line, "sysinfo") == 0) {
+        terminal_write_string("OS: MyOS v1.1\nArch: i686-elf\n");
     } else {
-        print_not_found(command);
+        terminal_write_string(cmd_line);
+        terminal_write_string(": command not found\n");
     }
 }
 
@@ -86,7 +74,7 @@ void shell_handle_char(char c) {
         terminal_put_char('\n');
         if (command_position > 0) {
             command_buffer[command_position] = '\0';
-            shell_execute_command(command_buffer); //
+            shell_execute_command(command_buffer);
         }
         command_position = 0;
         memset(command_buffer, 0, MAX_COMMAND_LENGTH);
@@ -95,7 +83,7 @@ void shell_handle_char(char c) {
     else if (c == '\b') {
         if (command_position > 0) {
             command_position--;
-            terminal_backspace(); //
+            terminal_backspace(); // Используем твою функцию из vga.c
         }
     }
     else {
@@ -105,13 +93,3 @@ void shell_handle_char(char c) {
         }
     }
 }
-
-// Реализация strncmp
-int strncmp(const char* s1, const char* s2, size_t n) {
-    while (n && *s1 && (*s1 == *s2)) {
-        s1++; s2++; n--;
-    }
-    if (n == 0) return 0;
-    return *(unsigned char*)s1 - *(unsigned char*)s2;
-}
-

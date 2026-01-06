@@ -1,0 +1,24 @@
+// src/isr.h (НЕ КОНФЛИКТУЕТ)
+
+#ifndef ISR_H
+#define ISR_H
+
+#include <stdint.h>
+
+// --- Структура регистров (Контекст, сохраненный isr.asm) ---
+typedef struct registers {
+    uint32_t ds;        // Сегмент данных
+    uint32_t edi, esi, ebp, esp_dummy, ebx, edx, ecx, eax;
+    uint32_t int_no, err_code;
+    uint32_t eip, cs, eflags, useresp, ss;
+} registers_t;
+
+// Прототип главного C-обработчика
+void isr_handler_c(registers_t *regs);
+
+void idt_install(void);
+void idt_load(void);
+void register_interrupt_handler(uint8_t n, void (*handler)(registers_t *regs));
+
+
+#endif // ISR_H

@@ -31,6 +31,7 @@ add_executable(untitled2 main.c
         src/shell.c
         src/syscall.c
         src/syscall.h
+        src/slab.c
 
 
 )

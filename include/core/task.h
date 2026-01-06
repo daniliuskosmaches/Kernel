@@ -9,7 +9,7 @@
 #define TASK_H
 
 #include "stdint.h"
-#include "idt.h" // Нужна структура registers_t для контекста
+#include "../idt.h"
 
 // Определение структуры задачи (Process Control Block)
 typedef struct task {

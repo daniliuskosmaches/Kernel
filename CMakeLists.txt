@@ -20,7 +20,7 @@ add_executable(untitled2 main.c
         src/task.c
         src/kernel.h
         src/kheap.c
-        src/string.c
+        src/lib/string.c
         src/kheap.h
         src/keyboard.h
         src/keyboard.c
@@ -32,6 +32,7 @@ add_executable(untitled2 main.c
         src/syscall.c
         src/syscall.h
         src/slab.c
+        include/core/slab.h
 
 
 )

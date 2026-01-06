@@ -4,7 +4,7 @@
 #define STDDEF_H
 
 // 1. size_t (тип для размеров и счетчиков, обычно unsigned int на 32-битных системах)
-#include "stdint.h" // Убедитесь, что uint32_t определен
+#include "stdint.h"
 
 
 

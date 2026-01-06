@@ -1,5 +1,3 @@
-# Makefile (ФИНАЛЬНАЯ ИСПРАВЛЕННАЯ ВЕРСИЯ)
-
 # --- Настройка Инструментов ---
 AS = nasm
 CC = i686-elf-gcc
@@ -7,68 +5,52 @@ LD = i686-elf-ld
 QEMU = qemu-system-i386
 
 # --- Файлы и Пути ---
-CFLAGS = -std=gnu99 -ffreestanding -O2 -Wall -Wextra -nostdlib -nostdinc -I.
-OBJECTS      = src/entry.o src/kernel.o src/asm_io.o src/idt.o src/isr.o src/vga.o src/timer.o src/pmm.o src/vmm.o src/task.o src/kheap.o src/string.o src/task_switch.o src/shell.o src/keyboard.o src/syscall.o
+# Добавляем -Iinclude, чтобы можно было писать #include "core/task.h"
+CFLAGS = -std=gnu99 -ffreestanding -O2 -Wall -Wextra -nostdlib -Iinclude -Iinclude/arch -Iinclude/core -Iinclude/drivers -Iinclude/lib
+
+# Автоматический поиск всех .c и .asm файлов в подпапках src/
+C_SOURCES = $(shell find src -name "*.c")
+ASM_SOURCES = $(shell find src -name "*.asm")
+
+# Превращаем пути src/xxx.c в obj/xxx.o
+OBJECTS = $(patsubst src/%.c, obj/%.o, $(C_SOURCES)) \
+          $(patsubst src/%.asm, obj/%.o, $(ASM_SOURCES))
+
 LINKER_SCRIPT = linker.ld
-KERNEL_ELF   = kernel.elf
-KERNEL_BIN   = kernel.bin
-GRUB_CFG     = grub.cfg  # КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Это исходный файл, а не путь назначения!
+KERNEL_ELF    = kernel.elf
+KERNEL_BIN    = kernel.bin
+ISO_NAME      = myos.iso
 
 # --- Главные Цели ---
+all: clean $(KERNEL_BIN) iso
 
-.PHONY: all iso run clean debug-wait gdb
+# Правило для создания папок в obj/ (чтобы структура повторилась)
+obj/%.o: src/%.c
+	@mkdir -p $(dir $@)
+	@echo "-> Compiling C: $<"
+	@$(CC) $(CFLAGS) -c $< -o $@
 
-all: $(KERNEL_BIN) iso
+obj/%.o: src/%.asm
+	@mkdir -p $(dir $@)
+	@echo "-> Assembling ASM: $<"
+	@$(AS) -f elf $< -o $@
 
-# --- Правила Компиляции ---
+# Линковка
+$(KERNEL_BIN): $(OBJECTS)
+	@echo "-> Linking Kernel..."
+	@$(LD) -T $(LINKER_SCRIPT) -o $(KERNEL_ELF) $(OBJECTS)
+	@i686-elf-objcopy -O binary $(KERNEL_ELF) $(KERNEL_BIN)
 
-src/task_switch.o: src/task_switch.asm
-	nasm -f elf src/task_switch.asm -o src/task_switch.o
-
-src/kheap.o: src/kheap.c
-	$(CC) $(CFLAGS) -c src/kheap.c -o src/kheap.o
-
-# Линковка ELF -> BIN
-$(KERNEL_BIN): $(OBJECTS) $(LINKER_SCRIPT)
-	@echo "-> Линковка ELF: Создание $(KERNEL_ELF)"
-	$(LD) -T $(LINKER_SCRIPT) -o $(KERNEL_ELF) $(OBJECTS)
-
-	@echo "-> Создание BIN: $@"
-	i686-elf-objcopy -O binary $(KERNEL_ELF) $(KERNEL_BIN)
-
-# Одно общее правило для всех C файлов
-src/%.o: src/%.c
-	@echo "-> Компиляция C: $<"
-	$(CC) -c $< -o $@ -std=gnu99 -ffreestanding -O2 -Wall -Wextra -nostdlib -I.
-
-# Правило для всех ASM файлов
-src/%.o: src/%.asm
-	@echo "-> Компиляция ASM: $<"
-	$(AS) $< -f elf -o $@
-
-# --- Цели Запуска и Очистки ---
-
-iso: $(KERNEL_BIN) $(GRUB_CFG)
-	@echo "-> ISO: Создание загрузочного образа"
-
-	# Убеждаемся, что папка существует
-	mkdir -p iso_root/boot/grub
-
-	# 1. Копируем ЯДРО в корень boot (используем ELF для multiboot!)
-	cp $(KERNEL_ELF) iso_root/boot/kernel.bin
-
-	# 2. Копируем grub.cfg в папку grub
-	cp $(GRUB_CFG) iso_root/boot/grub/grub.cfg
-
-	# Создаем ISO образ
-	grub-mkrescue -o myos.iso iso_root
+iso: $(KERNEL_BIN)
+	@echo "-> Creating ISO..."
+	@mkdir -p iso_root/boot/grub
+	@cp $(KERNEL_ELF) iso_root/boot/kernel.bin
+	@cp grub.cfg iso_root/boot/grub/grub.cfg
+	@grub-mkrescue -o $(ISO_NAME) iso_root
 
 run: iso
-	@echo "-> QEMU: Запуск ядра..."
-	$(QEMU) -cdrom myos.iso
-
-# ... (Остальные цели остались без изменений)
+	@$(QEMU) -cdrom $(ISO_NAME) -serial stdio # Вывод логов в терминал
 
 clean:
-	@echo "-> Очистка..."
-	rm -f $(OBJECTS) $(KERNEL_ELF) $(KERNEL_BIN) myos.iso
+	@echo "-> Cleaning up..."
+	@rm -rf obj $(KERNEL_ELF) $(KERNEL_BIN) $(ISO_NAME) iso_root

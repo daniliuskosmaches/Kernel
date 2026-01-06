@@ -5,8 +5,8 @@
 #ifndef STRING_H
 #define STRING_H
 
-#include "stddef.h" // Для типа size_t
-#include "stdint.h" // Для типов вроде uint8_t
+#include "stddef.h"
+#include "stdint.h"
 
 // ============================================================
 // ФУНКЦИИ УПРАВЛЕНИЯ ПАМЯТЬЮ

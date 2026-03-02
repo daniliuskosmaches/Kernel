@@ -1,9 +1,9 @@
 // src/idt.c - ВИПРАВЛЕНА ВЕРСІЯ (БЕЗ TRIPLE FAULT)
-#include "idt.h"
-#include "isr.h"
-#include "vga.h"
-#include "string.h"
-#include "system.h"
+#include "../include/idt.h"
+#include "../include/isr.h"
+#include "../include/vga.h"
+#include "../include/lib/string.h"
+#include "../include/system.h"
 
 // Масив обробників переривань
 void (*interrupt_handlers[256])(registers_t *regs) = {0};
@@ -64,11 +64,9 @@ void register_interrupt_handler(uint8_t n, void (*handler)(registers_t *)) {
 }
 
 void pic_remap(int offset1, int offset2) {
-    unsigned char a1, a2;
-
     // Зберігаємо поточні маски
-    a1 = inb(PIC1_DATA);
-    a2 = inb(PIC2_DATA);
+    inb(PIC1_DATA);
+    inb(PIC2_DATA);
 
     // ICW1: Початок ініціалізації
     outb(PIC1_COMMAND, 0x11);
@@ -94,7 +92,6 @@ void pic_remap(int offset1, int offset2) {
 
 void pic_enable_irq(uint8_t irq) {
     uint16_t port;
-    uint8_t value;
 
     if (irq < 8) {
         port = PIC1_DATA;
@@ -103,13 +100,12 @@ void pic_enable_irq(uint8_t irq) {
         irq -= 8;
     }
 
-    value = inb(port) & ~(1 << irq);
+    uint8_t value = inb(port) & ~(1 << irq);
     outb(port, value);
 }
 
 void pic_disable_irq(uint8_t irq) {
     uint16_t port;
-    uint8_t value;
 
     if (irq < 8) {
         port = PIC1_DATA;
@@ -118,7 +114,7 @@ void pic_disable_irq(uint8_t irq) {
         irq -= 8;
     }
 
-    value = inb(port) | (1 << irq);
+    uint8_t value = inb(port) | (1 << irq);
     outb(port, value);
 }
 

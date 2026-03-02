@@ -27,8 +27,15 @@ SECTIONS
     }
 
     /* РАЗДЕЛИТЕЛЬ: Все, что после этой точки — свободная память для Slab и Бэкенда */
-    . = ALIGN(4K);
-    placement_address = .; [cite: 7]
+        . = ALIGN(4K);
+        .slab ALIGN(4K) :
+        {
+            *(.slab)
+        }
+        .backend ALIGN(4K) :
+        {
+            *(.backend)
+        }
 
     /* Добавляем символ конца ядра для отладки */
     _kernel_end = .;

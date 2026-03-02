@@ -7,7 +7,7 @@
 
 // Определения для IRQ0 (Таймер) и IRQ1 (Клавиатура)
 #define IRQ0 (IRQ_MASTER_OFFSET + 0) // Таймер
-#define IRQ1 (IRQ_MASTER_OFFSET + 1) // Клавиатура <--- ЭТО РЕШАЕТ ПРОБЛЕМУ 'IRQ1'
+#define IRQ1 33 // Клавиатура <--- ЭТО РЕШАЕТ ПРОБЛЕМУ 'IRQ1'
 
 
 #include <stdint.h>

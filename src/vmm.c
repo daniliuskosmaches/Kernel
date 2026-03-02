@@ -1,7 +1,7 @@
-#include "string.h"
-#include "vmm.h"
-#include "pmm.h"
-#include "vga.h"
+#include "../include/lib/string.h"
+#include "../include/core/vmm.h"
+#include "../include/pmm.h"
+#include "../include/vga.h"
 
 page_directory_t *current_page_directory = 0;
 

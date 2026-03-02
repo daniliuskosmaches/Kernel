@@ -2,10 +2,10 @@
 // Created by nazar on 03.01.26.
 //
 
-#include "pmm.h"
-#include "vmm.h"
+#include "../include/pmm.h"
+#include "../include/core/vmm.h"
 #include "string.h"
-#include "vga.h"
+#include "../include/vga.h"
 
 #define SLAB_MAGIC 0x51AB51AB
 

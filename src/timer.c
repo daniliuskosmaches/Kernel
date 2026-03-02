@@ -1,10 +1,10 @@
 // src/timer.c - ИСПРАВЛЕННАЯ ВЕРСИЯ
 
-#include "timer.h"
-#include "idt.h"
-#include "system.h"
-#include "task.h"
-#include "isr.h"
+#include "../include/timer.h"
+#include "../include/idt.h"
+#include "../include/system.h"
+#include "../include/core/task.h"
+#include "../include/isr.h"
 
 #define PIT_FREQ 1193180  // Базовая частота PIT (1.193180 МГц)
 

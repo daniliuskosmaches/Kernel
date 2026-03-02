@@ -4,7 +4,7 @@
 
 #include "stddef.h"
 #include "string.h"
-#include "vga.h"
+#include "../../include/vga.h"
 
 
 void *memset(void *s, int c, size_t n) {

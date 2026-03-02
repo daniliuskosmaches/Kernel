@@ -1,16 +1,17 @@
 // src/kernel.c - ФИНАЛЬНАЯ РАБОЧАЯ ВЕРСИЯ
 
-#include "idt.h"
-#include "multiboot.h"
-#include "vga.h"
-#include "vmm.h"
-#include "timer.h"
-#include "task.h"
-#include "kheap.h"
-#include "pmm.h"
-#include "shell.h"
-#include "syscall.h"
-#include "keyboard.h"
+#include "../include/isr.h"
+#include "../include/multiboot.h"
+#include "../include/vga.h"
+#include "../include/app/shell.h"
+#include "../include/timer.h"
+#include "../include/core/task.h"
+#include "../include/core/kheap.h"
+#include "../include/core/vmm.h"
+#include "../include/pmm.h"
+#include "../include/keyboard.h"
+#include "../include/syscall.h"
+
 
 
 // ============================================================
@@ -76,8 +77,8 @@ void kmain(unsigned int multiboot_magic, multiboot_info_t *mbi) {
     // ФАЗА 5: ИНИЦИАЛИЗАЦИЯ КУЧИ
     // ========================================================
     terminal_write_string("[5/9] Initializing Kernel Heap... ");
-    kheap_init();
 
+    kheap_init(0xC0000000, 0xC1000000); // 16 MB для кучи
     // Проверяем, работает ли kmalloc
     void* test_ptr = kmalloc(32);
     if (test_ptr == 0) {

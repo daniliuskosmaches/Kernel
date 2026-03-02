@@ -33,6 +33,9 @@ add_executable(untitled2 main.c
         src/syscall.h
         src/slab.c
         include/core/slab.h
+        src/shell.c
+        src/kheap.c
+        include/switch_to_task.h
 
 
 )

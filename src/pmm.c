@@ -1,8 +1,9 @@
 // src/pmm.c - ИСПРАВЛЕННАЯ ВЕРСИЯ
 
-#include "pmm.h"
-#include "multiboot.h"
-#include "vga.h"  // Для отладочных сообщений
+#include "../include/pmm.h"
+#include "../include/multiboot.h"
+#include "../include/vga.h"
+
 
 #define PAGE_SIZE 4096
 #define MAX_PHYS_MEM 0x10000000 // 256 MB (вместо 1GB) - чтобы bitmap влез в 16MB

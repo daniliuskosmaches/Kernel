@@ -24,8 +24,14 @@ typedef struct task {
     uint32_t pid;         // ID процесса
     // Добавьте указатель на следующую задачу для создания списка
     struct task *next;
-
+    char * name;
 } task_t;
+
+
+
+typedef struct context {
+    uint32_t edi, esi, ebx, ebp, eip;
+} context_t;
 
 // Глобальное объявление текущей задачи и списка задач
 extern task_t *current_task; // Указатель на текущую выполняемую задачу

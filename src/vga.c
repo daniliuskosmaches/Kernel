@@ -1,5 +1,5 @@
-#include "vga.h"
-#include "system.h"
+#include "../include/vga.h"
+#include "../include/system.h"
 #include "stdint.h"
 #include "stddef.h"
 

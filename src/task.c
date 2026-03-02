@@ -1,7 +1,9 @@
 #include "../include/core/task.h"
 #include "../include/core/slab.h"
 #include "../include/core/vmm.h"
-#include "../include/lib/string.h"
+#include "../include/pmm.h"
+#include "string.h"
+#include "../include/switch_to_task.h"
 
 task_t *current_task = 0;
 task_t *ready_queue = 0;
@@ -18,8 +20,12 @@ task_t* task_create(void (*entry_point)(), const char* name) {
     uint32_t* esp = (uint32_t*)((uint32_t)stack + 4096);
 
     // Подготавливаем стек, чтобы switch_to_task мог "вернуться" в entry_point
-    *(--esp) = (uint32_t)entry_point; // Куда прыгнуть
-    *(--esp) = 0;                    // Фиктивный EBP
+    // В task_create
+    esp -= sizeof(context_t);
+    context_t *ctx = (context_t*)esp;
+    ctx->eip = (uint32_t)entry_point;
+    ctx->ebp = 0;
+    new_task->esp = (uint32_t)esp;            // Фиктивный EBP
 
     new_task->pid = next_pid++;
     new_task->esp = (uint32_t)esp;
@@ -32,6 +38,12 @@ task_t* task_create(void (*entry_point)(), const char* name) {
     ready_queue = new_task;
 
     return new_task;
+}
+
+char* strcpy(char* dest, const char* src) {
+    char* d = dest;
+    while ((*d++ = *src++));
+    return dest;
 }
 
 void task_init(void) {

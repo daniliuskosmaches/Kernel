@@ -1,7 +1,7 @@
-#include "keyboard.h"
-#include "io.h"
-#include "vga.h"
-#include <stdbool.h>
+#include "../include/keyboard.h"
+#include "../include/io.h"
+#include "../include/vga.h"
+#include "../include/idt.h"
 
 #define INPUT_MAX 256
 
@@ -23,19 +23,29 @@ static const char keymap[128] = {
     0,'*',0,' ',
 };
 
-void keyboard_init() {
-    // Регистрация обработчика (IRQ1 -> Вектор 0x21)
-    register_interrupt_handler(0x21, keyboard_handler);
+void init_keyboard() {
 
+    // Регистрируем обработчик для IRQ1 (0x21)
+    register_interrupt_handler(IRQ1, keyboard_handler);
     // Разрешаем IRQ1 в контроллере прерываний
     uint8_t mask = inb(0x21);
     outb(0x21, mask & ~(1 << 1));
+
+
 }
 
-// ВЕРХНЯЯ ПОЛОВИНА: Только чтение порта и запись в очередь
-void keyboard_handler() {
-    uint8_t scancode = inb(0x60);
+char keyboard_get_char(void) {
+    while (head == tail); // Ждем нажатия (простейший вариант)
+    uint8_t scancode = kbd_queue[tail];
+    tail = (tail + 1) % INPUT_MAX;
+    return keymap[scancode];
+}
 
+
+// ВЕРХНЯЯ ПОЛОВИНА: Только чтение порта и запись в очередь
+void keyboard_handler(registers_t *regs) {
+
+    uint8_t scancode = inb(0x60);
     // Проверяем, что это нажатие (бит 7 не установлен)
     if (!(scancode & 0x80)) {
         uint32_t next = (head + 1) % INPUT_MAX;

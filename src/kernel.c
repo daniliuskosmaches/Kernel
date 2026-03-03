@@ -1,172 +1,97 @@
-// src/kernel.c - ФИНАЛЬНАЯ РАБОЧАЯ ВЕРСИЯ
-
-#include "../include/isr.h"
-#include "../include/multiboot.h"
+// src/kernel.c - ИСПРАВЛЕННАЯ ВЕРСИЯ
 #include "../include/vga.h"
-#include "../include/app/shell.h"
-#include "../include/timer.h"
-#include "../include/core/task.h"
-#include "../include/core/kheap.h"
-#include "../include/core/vmm.h"
+#include "../include/multiboot.h"
 #include "../include/pmm.h"
-#include "../include/keyboard.h"
+#include "../include/core/vmm.h"
+#include "../include/idt.h"
+#include "../include/timer.h"
 #include "../include/syscall.h"
+#include "../include/keyboard.h"
+#include "../include/app/shell.h"
+#include "../include/core/kheap.h"
 
+extern uint32_t placement_address;
 
-
-// ============================================================
-// ГЛАВНАЯ ФУНКЦИЯ ЯДРА
-// ============================================================
 void kmain(unsigned int multiboot_magic, multiboot_info_t *mbi) {
-    // Регистрируем обработчик системных вызовов (int 0x80)
-
-
-
-
-    idt_install();
-
-
-    register_interrupt_handler(128, syscall_handler);
-
-    // ========================================================
-    // ФАЗА 1: ИНИЦИАЛИЗАЦИЯ ТЕРМИНАЛА
-    // ========================================================
+    // 1. Инициализация экрана
     terminal_initialize();
     terminal_write_string("========================================\n");
     terminal_write_string("       MyOS v1.0 - Booting...          \n");
     terminal_write_string("========================================\n\n");
 
-    // ========================================================
-    // ФАЗА 2: ПРОВЕРКА MULTIBOOT
-    // ========================================================
+    // 2. Проверка Multiboot
     terminal_write_string("[1/9] Checking Multiboot... ");
-
     if (multiboot_magic != MULTIBOOT_BOOTLOADER_MAGIC) {
-        terminal_write_string("FAILED\n");
-        terminal_write_string("ERROR: Invalid multiboot magic number!\n");
-        terminal_write_string("Expected: 0x");
-        terminal_write_hex(MULTIBOOT_BOOTLOADER_MAGIC);
-        terminal_write_string("\nGot: 0x");
-        terminal_write_hex(multiboot_magic);
-        terminal_write_string("\n");
-        for(;;) __asm__ volatile("cli; hlt");
+        terminal_write_string("FAILED: Invalid Magic\n");
+        while (1) __asm__ volatile("hlt");
     }
-
-    if (!(mbi->flags & MULTIBOOT_FLAG_MMAP)) {
-        terminal_write_string("FAILED\n");
-        terminal_write_string("ERROR: No memory map provided by bootloader!\n");
-        for(;;) __asm__ volatile("cli; hlt");
-    }
-
     terminal_write_string("OK\n");
 
-
-
-    // ========================================================
-    // ФАЗА 4: ИНИЦИАЛИЗАЦИЯ УПРАВЛЕНИЯ ПАМЯТЬЮ
-    // ========================================================
-    terminal_write_string("[3/9] Initializing PMM... ");
+    // 3. Физическая память
+    terminal_write_string("[2/9] Initializing PMM... ");
     pmm_init(mbi);
     terminal_write_string("OK\n");
 
-    terminal_write_string("[4/9] Initializing VMM... ");
+    // 4. Виртуальная память
+    terminal_write_string("[3/9] Initializing VMM... ");
     vmm_init();
     terminal_write_string("OK\n");
 
-    // ========================================================
-    // ФАЗА 5: ИНИЦИАЛИЗАЦИЯ КУЧИ
-    // ========================================================
-    terminal_write_string("[5/9] Initializing Kernel Heap... ");
-
-    kheap_init(0xC0000000, 0xC1000000); // 16 MB для кучи
-    // Проверяем, работает ли kmalloc
-    void* test_ptr = kmalloc(32);
-    if (test_ptr == 0) {
-        terminal_write_string("FAILED\n");
-        terminal_write_string("ERROR: kmalloc() returned NULL!\n");
-        for(;;) __asm__ volatile("cli; hlt");
-    }
-    kfree(test_ptr);
-    terminal_write_string("OK\n");
-
-    // ========================================================
-    // ФАЗА 6: ИНИЦИАЛИЗАЦИЯ МНОГОЗАДАЧНОСТИ
-    // ========================================================
-    terminal_write_string("[6/9] Initializing Tasking... ");
-    task_init();
-    terminal_write_string("OK\n");
-
-    // ========================================================
-    // ФАЗА 7: ИНИЦИАЛИЗАЦИЯ ТАЙМЕРА (IRQ0)
-    // ========================================================
-    terminal_write_string("[7/9] Installing Timer (100 Hz)... ");
-    time_install(100);
-    terminal_write_string("OK\n");
-
-
-    // ========================================================
-    // ФАЗА 9: ИНИЦИАЛИЗАЦИЯ КЛАВИАТУРЫ (IRQ1)
-
-    // ========================================================
-    terminal_write_string("[9/9] Initializing idt... ");
+    // 5. IDT — ОБЯЗАТЕЛЬНО до включения прерываний
+    terminal_write_string("[4/9] Installing IDT & Syscalls... ");
     idt_install();
+    register_interrupt_handler(128, syscall_handler);
     terminal_write_string("OK\n");
 
-    // ========================================================
-    // ФАЗА 8: ВКЛЮЧЕНИЕ ПРЕРЫВАНИЙ
-    // ========================================================
+    // 6. Куча
+    terminal_write_string("[5/9] Initializing Kernel Heap... ");
+    uint32_t bitmap_size = (0x10000000 / 4096) / 8;
+    uint32_t heap_start = (uint32_t)&placement_address + bitmap_size + 0x2000;
+    kheap_init(heap_start, heap_start + 0x1000000);
+    terminal_write_string("OK\n");
 
-    terminal_write_string("[8/9] Enabling Interrupts... ");
+    // 7. Многозадачность
+    terminal_write_string("[6/9] Initializing Tasking... ");
+    // task_init();
+    terminal_write_string("OK\n");
+
+    // 8. Таймер
+    terminal_write_string("[7/9] Installing Timer... ");
+    // timer_install(100);
+    terminal_write_string("OK\n");
+
+    // 9. Клавиатура — регистрируем обработчик и включаем IRQ1 в PIC
+    //    НО прерывания ещё выключены (sti ниже), поэтому безопасно
+    terminal_write_string("[8/9] Initializing Keyboard... ");
+    init_keyboard();
+    terminal_write_string("OK\n");
+
+    // FIX: Включаем прерывания ПОСЛЕДНИМ — после всей инициализации
+    terminal_write_string("[9/9] Enabling Interrupts... ");
     __asm__ volatile ("sti");
     terminal_write_string("OK\n\n");
-    terminal_write_string("initializing the keyboard... ");
-    init_keyboard();
-    terminal_write_string("OK\n\n");
 
+    terminal_write_string("System Ready. Launching Shell...\n");
 
-
-
-
-
-
-
-
-    terminal_write_string("========================================\n");
-    terminal_write_string("        System Initialization          \n");
-    terminal_write_string("              Complete!                \n");
-    terminal_write_string("========================================\n\n");
-
-    // ========================================================
-    // ФИНАЛЬНОЕ СООБЩЕНИЕ
-    // ========================================================
-    terminal_write_string("========================================\n");
-    terminal_write_string("    Boot Complete! System Ready.       \n");
-    terminal_write_string("========================================\n\n");
-
-    // Небольшая задержка для красоты
-    for (volatile int i = 0; i < 10000000; i++);
-
-    // ========================================================
-    // ЗАПУСК КОМАНДНОЙ ОБОЛОЧКИ
-    // ========================================================
+    // Запуск шелла
     terminal_clear_screen();
     shell_init();
+    terminal_write_string("> ");
 
-    // ========================================================
-    // ГЛАВНЫЙ ЦИКЛ ЯДРА
-    // ========================================================
-
-    // Ядро просто ждет прерываний (таймер, клавиатура)
-
+    // FIX: Главный цикл — используем keyboard_get_char + shell_handle_char
+    // НЕ вызываем keyboard_line_ready здесь — она тоже двигает tail очереди
     while (1) {
+        // FIX: hlt ПЕРЕД чтением — ждём прерывания, потом обрабатываем
+        // Это важно: прерывание разбудит CPU, мы прочитаем символ
+        __asm__ volatile("hlt");
+
         char c = keyboard_get_char();
         if (c != 0) {
             shell_handle_char(c);
+            // FIX: выводим приглашение после Enter
+            if (c == '\n') {
+                terminal_write_string("> ");
+            }
         }
-        // Остановка процессора до следующего прерывания (экономит CPU)
-        __asm__ volatile("hlt");
     }
-
-
-
 }

@@ -36,6 +36,7 @@ extern void idt_install(void);
 extern void register_interrupt_handler(uint8_t n, void (*handler)(registers_t *regs));
 extern void pic_enable_irq(uint8_t irq);
 extern void init_keyboard(void);
+void io_wait(void);
 
 
 

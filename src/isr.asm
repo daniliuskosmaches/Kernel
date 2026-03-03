@@ -1,4 +1,4 @@
-; src/isr.asm - ПОЛНАЯ ИСПРАВЛЕННАЯ ВЕРСИЯ
+; src/isr.asm - ИСПРАВЛЕННАЯ ВЕРСИЯ
 extern isr_handler_c
 
 section .text
@@ -6,18 +6,21 @@ global isr_common
 
 ; --- Макросы ---
 
+; ИСПРАВЛЕНО: ISR_ERRCODE - CPU уже положил err_code, мы только пушим int_no
 %macro ISR_ERRCODE 1
 global isr%1
 isr%1:
-    push byte %1          ; Вектор прерывания
+    ; err_code уже на стеке от CPU
+    push dword %1       ; FIX: push dword вместо push byte — гарантирует 4 байта
     jmp isr_common
 %endmacro
 
+; ISR_NOERRCODE - CPU не кладёт err_code, эмулируем 0
 %macro ISR_NOERRCODE 1
 global isr%1
 isr%1:
-    push byte 0           ; Эмулируем код ошибки
-    push byte %1          ; Вектор прерывания
+    push dword 0        ; FIX: push dword — заглушка err_code (4 байта)
+    push dword %1       ; FIX: push dword — номер прерывания (4 байта)
     jmp isr_common
 %endmacro
 
@@ -56,14 +59,15 @@ ISR_NOERRCODE 29
 ISR_NOERRCODE 30
 ISR_NOERRCODE 31
 
-ISR_NOERRCODE 128  ; Программное прерывание для системных вызовов
-; --- Аппаратные прерывания (IRQ 0-15 -> ISR 32-47) ---
+ISR_NOERRCODE 128  ; Системный вызов INT 0x80
+
+; --- Аппаратные прерывания (IRQ 0-15 -> INT 32-47) ---
 
 %macro IRQ 2
 global irq%1
 irq%1:
-    push byte 0
-    push byte %2
+    push dword 0        ; FIX: push dword
+    push dword %2       ; FIX: push dword — номер вектора (32-47)
     jmp isr_common
 %endmacro
 
@@ -86,30 +90,34 @@ IRQ 15, 47
 
 
 global idt_load
-extern idtp ; Указываем, что структура idtp объявлена в Си
+extern idtp
 
 idt_load:
-    lidt [idtp] ; Загружаем адрес таблицы IDT в специальный регистр процессора
-    ret         ; Возвращаемся в Си-код
+    lidt [idtp]
+    ret
 
 
 isr_common:
-    pusha               ; Сохраняем регистры
+    pusha               ; Сохраняем: eax, ecx, edx, ebx, esp, ebp, esi, edi
     mov ax, ds
-    push eax            ; Сохраняем сегмент данных
+    push eax            ; Сохраняем ds
 
     mov ax, 0x10        ; Сегмент данных ядра
     mov ds, ax
     mov es, ax
+    mov fs, ax          ; FIX: также обновляем fs и gs
+    mov gs, ax
 
-    push esp            ; Передаем указатель на структуру registers_t
+    push esp            ; Передаём указатель на registers_t в isr_handler_c
     call isr_handler_c
-    add esp, 4          ; Очищаем аргумент функции
+    add esp, 4          ; Убираем аргумент
 
-    pop eax
+    pop eax             ; Восстанавливаем ds
     mov ds, ax
     mov es, ax
-    popa                ; Восстанавливаем регистры
+    mov fs, ax          ; FIX: восстанавливаем fs и gs
+    mov gs, ax
 
-    add esp, 8          ; Очищаем код ошибки и номер прерывания (ВАЖНО!)
+    popa                ; Восстанавливаем регистры
+    add esp, 8          ; Убираем err_code и int_no
     iret                ; Возврат из прерывания

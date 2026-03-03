@@ -37,6 +37,8 @@ SECTIONS
             *(.backend)
         }
 
+
     /* Добавляем символ конца ядра для отладки */
+    placement_address = .;
     _kernel_end = .;
 }

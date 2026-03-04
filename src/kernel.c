@@ -9,6 +9,7 @@
 #include "../include/keyboard.h"
 #include "../include/app/shell.h"
 #include "../include/core/kheap.h"
+#include "../include/gdt.h"
 
 extern uint32_t placement_address;
 
@@ -27,21 +28,30 @@ void kmain(unsigned int multiboot_magic, multiboot_info_t *mbi) {
     }
     terminal_write_string("OK\n");
 
+
+    gdt_install();
+
     // 3. Физическая память
     terminal_write_string("[2/9] Initializing PMM... ");
     pmm_init(mbi);
     terminal_write_string("OK\n");
 
-    // 4. Виртуальная память
-    terminal_write_string("[3/9] Initializing VMM... ");
-    vmm_init();
-    terminal_write_string("OK\n");
 
-    // 5. IDT — ОБЯЗАТЕЛЬНО до включения прерываний
-    terminal_write_string("[4/9] Installing IDT & Syscalls... ");
+
+    // 4. IDT — ОБЯЗАТЕЛЬНО до включения прерываний
+    terminal_write_string("[3/9] Installing IDT & Syscalls... ");
     idt_install();
     register_interrupt_handler(128, syscall_handler);
     terminal_write_string("OK\n");
+
+
+
+    // 5. Виртуальная память
+    terminal_write_string("[4/9] Initializing VMM... ");
+    vmm_init();
+    terminal_write_string("OK\n");
+
+    __asm__ volatile ("sti");
 
     // 6. Куча
     terminal_write_string("[5/9] Initializing Kernel Heap... ");

@@ -31,6 +31,15 @@ int strcmp(const char* str1, const char* str2) {
     return *(unsigned char*)str1 - *(unsigned char*)str2;
 }
 
+int strncmp(const char* str1, const char* str2, size_t n) {
+    while (n-- && *str1 && (*str1 == *str2)) {
+        str1++;
+        str2++;
+    }
+    if (n == (size_t)-1) return 0; // Если мы сравнили n символов и они все совпали
+    return *(unsigned char*)str1 - *(unsigned char*)str2;
+}
+
 size_t strlen(const char* str) {
     size_t len = 0;
     while (str[len]) {

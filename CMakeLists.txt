@@ -36,6 +36,8 @@ add_executable(untitled2 main.c
         src/shell.c
         src/kheap.c
         include/switch_to_task.h
+        include/gdt.h
+        src/gdt.c
 
 
 )

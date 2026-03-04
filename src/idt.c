@@ -2,6 +2,7 @@
 #include "../include/idt.h"
 #include "../include/isr.h"
 #include "../include/vga.h"
+
 #include "../include/lib/string.h"
 #include "../include/system.h"
 
@@ -65,57 +66,18 @@ void idt_set_gate(unsigned char num, unsigned long base, unsigned short sel, uns
     idt[num].flags     = flags;
 }
 
-// FIX: Единый обработчик для всех прерываний с отладочным выводом исключений
+// В idt.cmake
 void isr_handler_c(registers_t *regs) {
-    // Аппаратные прерывания (IRQ)
-    if (regs->int_no >= 32 && regs->int_no < 48) {
-        // Сначала вызываем обработчик
-        if (interrupt_handlers[regs->int_no] != 0) {
-            interrupt_handlers[regs->int_no](regs);
-        }
+    if (interrupt_handlers[regs->int_no] != 0) {
+        interrupt_handlers[regs->int_no](regs);
+    }
 
-        // EOI: сначала slave, потом master
+    // Правильный EOI для всех IRQ (32-47)
+    if (regs->int_no >= 32 && regs->int_no <= 47) {
         if (regs->int_no >= 40) {
-            outb(PIC2_COMMAND, 0x20);
+            outb(0xA0, 0x20); // Slave
         }
-        outb(PIC1_COMMAND, 0x20);
-        return;
-    }
-
-    // Системный вызов
-    if (regs->int_no == 128) {
-        if (interrupt_handlers[128] != 0) {
-            interrupt_handlers[128](regs);
-        }
-        return;
-    }
-
-    // FIX: Исключения CPU (0-31) — выводим информацию и останавливаемся
-    // Это позволяет увидеть что происходит вместо тихого triple fault
-    if (regs->int_no < 32) {
-        if (interrupt_handlers[regs->int_no] != 0) {
-            // Есть зарегистрированный обработчик (например page_fault_handler_c)
-            interrupt_handlers[regs->int_no](regs);
-        } else {
-            // FIX: Выводим отладочную информацию для любого необработанного исключения
-            terminal_write_string("\n\n=== KERNEL EXCEPTION ===\n");
-            terminal_write_string("Exception: ");
-            if (regs->int_no < 32) {
-                terminal_write_string(exception_messages[regs->int_no]);
-            }
-            terminal_write_string("\nINT#: ");
-            terminal_write_hex(regs->int_no);
-            terminal_write_string("\nErr:  ");
-            terminal_write_hex(regs->err_code);
-            terminal_write_string("\nEIP:  ");
-            terminal_write_hex(regs->eip);
-            terminal_write_string("\nCS:   ");
-            terminal_write_hex(regs->cs);
-            terminal_write_string("\nEFLAGS: ");
-            terminal_write_hex(regs->eflags);
-            terminal_write_string("\nSystem halted.\n");
-            for (;;) __asm__ volatile("cli; hlt");
-        }
+        outb(0x20, 0x20); // Master
     }
 }
 

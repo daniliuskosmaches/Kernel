@@ -6,6 +6,7 @@
 #include "../include/switch_to_task.h"
 #include <stdint.h>
 
+
 task_t *current_task = 0;
 task_t *ready_queue = 0;
 static uint32_t next_pid = 1;
@@ -61,4 +62,12 @@ void scheduler_run() {
 
     // Вызываем переключатель. Убедись, что аргументы совпадают с switch_to_task.asm
     switch_to_task(next->eip, next->esp, next->ebp, next->pg_dir_phys);
+}
+
+
+
+char* strcpy(char* dest, const char* src) {
+    char* d = dest;
+    while ((*d++ = *src++));
+    return dest;
 }

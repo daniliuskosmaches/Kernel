@@ -26,6 +26,7 @@ global vmm_get_cr3
 _start:
     ; 1. Настройка Стека:
     mov esp, stack_top
+    and esp, 0xFFFFFFF0
 
     ; 2. Передача аргументов в kmain:
     push ebx    ; push mbi

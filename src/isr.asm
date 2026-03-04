@@ -98,26 +98,27 @@ idt_load:
 
 
 isr_common:
-    pusha               ; Сохраняем: eax, ecx, edx, ebx, esp, ebp, esi, edi
+    pusha
+
     mov ax, ds
-    push eax            ; Сохраняем ds
+    push eax
 
-    mov ax, 0x10        ; Сегмент данных ядра
+    mov ax, 0x10
     mov ds, ax
     mov es, ax
-    mov fs, ax          ; FIX: также обновляем fs и gs
+    mov fs, ax
     mov gs, ax
 
-    push esp            ; Передаём указатель на registers_t в isr_handler_c
+    push esp
     call isr_handler_c
-    add esp, 4          ; Убираем аргумент
+    add esp, 4
 
-    pop eax             ; Восстанавливаем ds
-    mov ds, ax
+    pop eax        ; ВОТ ЭТОГО НЕ ХВАТАЛО: достаем сохраненный DS
+    mov ds, ax     ; Восстанавливаем сегменты
     mov es, ax
-    mov fs, ax          ; FIX: восстанавливаем fs и gs
+    mov fs, ax
     mov gs, ax
 
-    popa                ; Восстанавливаем регистры
-    add esp, 8          ; Убираем err_code и int_no
-    iret                ; Возврат из прерывания
+    popa           ; Восстанавливаем EDI, ESI, EBP, EBX, EDX, ECX, EAX
+    add esp, 8     ; Очищаем int_no и err_code
+    iret           ; Теперь ESP смотрит точно на EIP, CS и EFLAGS

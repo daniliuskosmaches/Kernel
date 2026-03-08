@@ -10,6 +10,8 @@
 #include "../include/app/shell.h"
 #include "../include/core/kheap.h"
 #include "../include/gdt.h"
+#include "../include/vfs/vfs.h"
+#include "../include/commands.h"
 
 extern uint32_t placement_address;
 
@@ -77,9 +79,19 @@ void kmain(unsigned int multiboot_magic, multiboot_info_t *mbi) {
     terminal_write_string("OK\n");
 
     // FIX: Включаем прерывания ПОСЛЕДНИМ — после всей инициализации
-    terminal_write_string("[9/9] Enabling Interrupts... ");
+    terminal_write_string("[9/11] Enabling Interrupts... ");
     __asm__ volatile ("sti");
     terminal_write_string("OK\n\n");
+
+    terminal_write_string("[10/11] initiilization vfs");
+    vfs_init();
+    terminal_write_string("OK\n\n");
+
+    terminal_write_string("[11/11] rmfs initinilization");
+    ramfs_init();
+    terminal_write_string("OK\n\n");
+
+
 
     terminal_write_string("System Ready. Launching Shell...\n");
 

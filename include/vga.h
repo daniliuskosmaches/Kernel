@@ -28,14 +28,21 @@ enum vga_color {
 // что они определены где-то в другом файле (.c)
 extern size_t vga_row;
 extern size_t vga_col;
+static uint16_t* const VGA_MEMORY = (uint16_t*) 0xB8000;
+static uint16_t* terminal_buffer;
 // Убедитесь, что это определено в .c
 
+uint16_t vga_entry(unsigned char uc, uint8_t color);
+void update_cursor(int x, int y);
 // Прототипы функций (без тел!)
 void terminal_initialize(void);
 void terminal_put_char(char c);
 void terminal_write_string(const char* data);;
 void terminal_set_color(uint8_t color);
 void terminal_set_limit(size_t limit);
-void terminal_write_hex();
+void terminal_write_hex(uint32_t n);
 void terminal_clear_screen(void);
+void terminal_dump_memory(uint32_t address, size_t size_bytes);
+void terminal_backspace(void);
+
 #endif

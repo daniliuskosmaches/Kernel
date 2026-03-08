@@ -4,31 +4,11 @@
 
 #include "../include/pmm.h"
 #include "../include/core/vmm.h"
-#include "string.h"
 #include "../include/vga.h"
+#include "../include/core/slab.h"
+#include "../include/core/kheap.h"
 
-#define SLAB_MAGIC 0x51AB51AB
 
-// Структура одного свободного объекта в слабе
-typedef struct slab_obj {
-    struct slab_obj* next;
-} slab_obj_t;
-
-// Заголовок страницы слаба (размещается в начале каждой 4KB страницы)
-typedef struct slab_page {
-    uint32_t magic;
-    uint32_t obj_size;
-    uint32_t free_count;
-    slab_obj_t* free_list;
-    struct slab_page* next;
-} slab_page_t;
-
-// Основная структура кэша для конкретного размера объекта
-typedef struct {
-    uint32_t obj_size;
-    slab_page_t* full_list;    // Список полностью занятых страниц
-    slab_page_t* partial_list; // Страницы, где есть свободные места
-} slab_cache_t;
 
 // Определим кэши для самых частых размеров в бэкенде
 // 32 и 64 — для сетевых заголовков, 128 и 256 — для структур задач/файберов
@@ -67,6 +47,19 @@ static slab_page_t* slab_create_page(uint32_t obj_size) {
     curr->next = NULL; // Последний объект
 
     return page;
+}
+
+slab_cache_t* slab_cache_create(uint32_t object_size) {
+    slab_cache_t* cache = (slab_cache_t*)kmalloc(sizeof(slab_cache_t));
+    if (!cache) return NULL;
+
+    cache->obj_size = object_size;
+    cache->full_list = NULL;
+    cache->partial_list = NULL;
+    cache->empty_list = NULL;
+    cache->objects_per_page = (4096 - sizeof(slab_page_t)) / object_size;
+
+    return cache;
 }
 
 void slab_init() {
@@ -133,4 +126,27 @@ void kfree_fast(void* ptr) {
     page->free_count++;
 
     // Тут можно добавить логику переноса из full_list обратно в partial_list
+}
+
+void* slab_alloc(slab_cache_t* cache) {
+    if (!cache->partial_list) {
+        slab_page_t* new_page = slab_create_page(cache->obj_size);
+        if (!new_page) return NULL;
+        new_page->next = cache->partial_list;
+        cache->partial_list = new_page;
+    }
+
+    slab_page_t* page = cache->partial_list;
+    slab_obj_t* obj = page->free_list;
+
+    page->free_list = obj->next;
+    page->free_count--;
+
+    if (page->free_count == 0) {
+        cache->partial_list = page->next;
+        page->next = cache->full_list;
+        cache->full_list = page;
+    }
+
+    return (void*)obj;
 }

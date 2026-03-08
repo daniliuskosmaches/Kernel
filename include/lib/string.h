@@ -58,4 +58,6 @@ char *strcpy(char *dest, const char *src);
  */
 char *strcat(char *dest, const char *src);
 
+char* strncpy(char* dest, const char* src, size_t n);
+
 #endif // STRING_H

@@ -1,6 +1,7 @@
-#include "../include/vga.h"
-#include "../include/system.h"
-#include "stdint.h"
+#include "../../../include/vga.h"
+#include "../../../include/system.h"
+#include "../../../include/lib/string.h"
+
 
 
 
@@ -33,6 +34,42 @@ void terminal_clear_screen(void) {
     terminal_update_cursor();
 }
 void terminal_set_color(uint8_t color);
+
+void terminal_put_char(char c);
+void terminal_write_string(const char* data);
+void terminal_backspace() {
+    // 1. Сдвигаем логическую позицию курсора назад
+    if (terminal_column > 0) {
+        terminal_column--;
+    } else if (terminal_row > 0) {
+        // Если мы в начале строки, прыгаем на конец предыдущей
+        terminal_row--;
+        terminal_column = VGA_WIDTH - 1;
+    }
+
+    // 2. Стираем символ в видеопамяти (пишем пробел с текущим цветом)
+    const size_t index = terminal_row * VGA_WIDTH + terminal_column;
+    terminal_buffer[index] = vga_entry(' ', terminal_color);
+
+    // 3. Обновляем аппаратный курсор (мигающая черточка)
+    update_cursor(terminal_column, terminal_row);
+}
+
+void update_cursor(int x, int y) {
+    // Вычисляем позицию в одномерном массиве
+    uint16_t pos = y * VGA_WIDTH + x;
+
+    // Говорим видеокарте, что хотим отправить младший байт (регистр 15)
+    outb(0x3D4, 0x0F);
+    outb(0x3D5, (uint8_t)(pos & 0xFF));
+
+    // Говорим видеокарте, что хотим отправить старший байт (регистр 14)
+    outb(0x3D4, 0x0E);
+    outb(0x3D5, (uint8_t)((pos >> 8) & 0xFF));
+}
+uint16_t vga_entry(unsigned char uc, uint8_t color) {
+    return (uint16_t) uc | (uint16_t) color << 8;
+}
 
 
 

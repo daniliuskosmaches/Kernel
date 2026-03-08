@@ -5,6 +5,7 @@
 #include "stddef.h"
 #include "string.h"
 #include "../../include/vga.h"
+#include "../../include/lib/stdio.h"
 
 
 void *memset(void *s, int c, size_t n) {
@@ -39,6 +40,70 @@ int strncmp(const char* str1, const char* str2, size_t n) {
     if (n == (size_t)-1) return 0; // Если мы сравнили n символов и они все совпали
     return *(unsigned char*)str1 - *(unsigned char*)str2;
 }
+void *memmove(void *dest, const void *src, size_t n) {
+    char *d = dest;
+    const char *s = src;
+    if (d < s) {
+        while (n--) {
+            *d++ = *s++;
+        }
+    } else {
+        d += n;
+        s += n;
+        while (n--) {
+            *--d = *--s;
+        }
+    }
+    return dest;
+}
+
+int sscanf(const char* str, const char* format, ...) {
+    // Это очень упрощенная версия sscanf, которая поддерживает только %x и %zu
+    va_list args;
+    va_start(args, format);
+
+    size_t i = 0, f = 0;
+    while (format[f]) {
+        if (format[f] == '%') {
+            f++;
+            if (format[f] == 'x') {
+                uint32_t *out = va_arg(args, uint32_t*);
+                *out = 0;
+                while (str[i] && ((str[i] >= '0' && str[i] <= '9') || (str[i] >= 'a' && str[i] <= 'f') || (str[i] >= 'A' && str[i] <= 'F'))) {
+                    *out *= 16;
+                    if (str[i] >= '0' && str[i] <= '9') {
+                        *out += str[i] - '0';
+                    } else if (str[i] >= 'a' && str[i] <= 'f') {
+                        *out += str[i] - 'a' + 10;
+                    } else if (str[i] >= 'A' && str[i] <= 'F') {
+                        *out += str[i] - 'A' + 10;
+                    }
+                    i++;
+                }
+            } else if (format[f] == 'z' && format[f+1] == 'u') {
+                f += 2;
+                size_t *out = va_arg(args, size_t*);
+                *out = 0;
+                while (str[i] && str[i] >= '0' && str[i] <= '9') {
+                    *out *= 10;
+                    *out += str[i] - '0';
+                    i++;
+                }
+            } else {
+                // Unsupported format specifier
+                va_end(args);
+                return -1;
+            }
+        } else {
+            // Skip non-format characters in the format string
+            while (format[f] && format[f] != '%') f++;
+        }
+    }
+
+    va_end(args);
+    return 0; // Success
+}
+
 
 size_t strlen(const char* str) {
     size_t len = 0;
@@ -49,7 +114,17 @@ size_t strlen(const char* str) {
 }
 
 // src/string.c (Добавьте это в конец файла)
-
+char* strncpy(char* dest, const char* src, size_t n) {
+    size_t i;
+    for (i = 0; i < n && src[i] != '\0'; i++) {
+        dest[i] = src[i];
+    }
+    // Если src короче n, заполняем остаток нулями
+    for (; i < n; i++) {
+        dest[i] = '\0';
+    }
+    return dest;
+}
 
 // ------------------------------------------------------------------
 // Реализация функции просмотра памяти (memspy)

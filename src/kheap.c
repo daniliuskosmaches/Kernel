@@ -1,7 +1,7 @@
-#include <stdint.h>
-#include <stddef.h>
-#include <stdint.h>
-#include <stddef.h>
+#include "../include/core/kheap.h"
+#include "../include/lib/stddef.h"
+#include "../include/lib/stdint.h"
+
 
 #define ALIGN(size) (((size) + 3) & ~3)
 

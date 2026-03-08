@@ -11,6 +11,8 @@ typedef uint8_t bool;
 #define false 0
 #endif
 
+#define KEY_BACKSPACE 0x0E
+#define KEY_F10       0x44
 
 void keyboard_handler(registers_t *regs);
 char keyboard_get_char(void);

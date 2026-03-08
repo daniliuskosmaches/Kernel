@@ -7,7 +7,7 @@ add_executable(untitled2 main.c
         src/kernel.c
         src/system.h
         src/idt.c
-        src/vga.c
+        src/app/visual_graphic_application/vga.c
         src/timer.c
         src/pmm.c
         src/vmm.c
@@ -28,16 +28,26 @@ add_executable(untitled2 main.c
         src/isr.h
         src/timer.h
         src/shell.h
-        src/shell.c
+        src/app/shell.c
         src/syscall.c
         src/syscall.h
         src/slab.c
         include/core/slab.h
-        src/shell.c
+        src/app/shell.c
         src/kheap.c
         include/switch_to_task.h
         include/gdt.h
         src/gdt.c
+        src/app/shell_commands/shell_commands.c
+        include/app/shell_commands.h
+        include/lib/stdio.h
+        src/app/text_editor/piko.c
+        src/vfs/vfs.c
+        include/vfs/vfs.h
+        include/app/text_editor/piko.h
+        include/types.h
+        src/app/shell_commands/file_commands/commands.c
+        include/commands.h
 
 
 )

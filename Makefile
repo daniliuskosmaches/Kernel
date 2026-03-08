@@ -6,8 +6,13 @@ QEMU = qemu-system-i386
 
 # --- Файлы и Пути ---
 # Добавляем -Iinclude, чтобы можно было писать #include "core/task.h"
-CFLAGS = -std=gnu99 -ffreestanding -O2 -Wall -Wextra -nostdlib -Iinclude -Iinclude/arch -Iinclude/core -Iinclude/drivers -Iinclude/lib
-
+# Объединяем все инклуды и флаги в одну кучу
+CFLAGS = -std=gnu99 -ffreestanding -O2 -Wall -Wextra -nostdlib \
+         -Iinclude \
+         -Iinclude/arch \
+         -Iinclude/core \
+         -Iinclude/drivers \
+         -Iinclude/lib
 # Автоматический поиск всех .c и .asm файлов в подпапках src/
 C_SOURCES = $(shell find src -name "*.c")
 ASM_SOURCES = $(shell find src -name "*.asm")

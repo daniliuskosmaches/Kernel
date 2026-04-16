@@ -1,8 +1,8 @@
 // src/keyboard.c - ИСПРАВЛЕННАЯ ВЕРСИЯ
-#include "../include/keyboard.h"
-#include "../include/io.h"
-#include "../include/vga.h"
-#include "../include/idt.h"
+#include "../../include/keyboard.h"
+#include "../../include/io.h"
+#include "../../include/vga.h"
+#include "../../include/idt.h"
 
 #define INPUT_MAX 256
 

@@ -3,7 +3,7 @@
 #include "../../include/lib/string.h"
 #include "../../include/app/shell_commands.h"
 #include "../../include/vfs/vfs.h"
-
+#include "../../include/syscall.h"
 
 
 
@@ -44,6 +44,10 @@ void shell_init(void) {
 void shell_execute_command(char* cmd) {
     if (strncmp(cmd, "help", 4) == 0) {
         help(cmd + 4);
+    }
+    if (strncmp(cmd, "shutdown", 8) == 0) {
+        shutdown(cmd);
+
     }
 
 

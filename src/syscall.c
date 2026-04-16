@@ -10,3 +10,9 @@ void syscall_handler(registers_t *regs) {
         terminal_write_string((char*)regs->ebx); // Сама строка в EBX
     }
 }
+void shutdown() {
+    while (1)  {
+        asm("cli: hlt");
+    }
+
+    }

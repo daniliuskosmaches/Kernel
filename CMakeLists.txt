@@ -23,7 +23,7 @@ add_executable(untitled2 main.c
         src/lib/string.c
         src/kheap.h
         src/keyboard.h
-        src/keyboard.c
+        src/drivers/keyboard.c
         src/io.h
         src/isr.h
         src/timer.h
@@ -48,6 +48,7 @@ add_executable(untitled2 main.c
         include/types.h
         src/app/shell_commands/file_commands/commands.c
         include/commands.h
+        "src/tcp_ip_stack /tcp_ip.c"
 
 
 )

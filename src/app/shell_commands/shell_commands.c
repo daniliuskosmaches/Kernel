@@ -20,6 +20,11 @@ void help(const char* cmd) {
     terminal_write_string("memspy <address> <size> - Dump memory at address\n");
     terminal_write_string("tasks - List running tasks\n");
     terminal_write_string("uptime - Show system uptime\n");
+    terminal_write_string("sh - Show contents of current directory\n");
+    terminal_write_string("at <dir> - Change directory\n");
+    terminal_write_string("mk <name> - Create a file or directory\n");
+     terminal_write_string("rm <name> - Remove a file or directory\n");
+
 }
 void clear(const char* cmd) {
     terminal_clear_screen();
@@ -45,13 +50,13 @@ void reboot(const char* cmd) {
     // Здесь нужно реализовать перезагрузку системы
     terminal_write_string("Reboot not implemented yet.\n");
 }
-void shutdown(const char* cmd) {
-    // Здесь нужно реализовать выключение системы
-    terminal_write_string("Shutdown not implemented yet.\n");
-}
+
+
 
 
 void ping(const char* cmd) {
+
+    
 
 }
 
@@ -85,6 +90,11 @@ void cmd_rm(char* name) {
     terminal_write_string(name);
     terminal_write_string(" - target destroyed (simulated).\n");
 
+
+
+}
+
+void memory_allocate() {
 
 
 }

@@ -29,7 +29,7 @@ add_executable(untitled2 main.c
         src/timer.h
         src/shell.h
         src/app/shell.c
-        src/syscall.c
+        src/syscall/syscall.c
         src/syscall.h
         src/slab.c
         include/core/slab.h
@@ -48,7 +48,6 @@ add_executable(untitled2 main.c
         include/types.h
         src/app/shell_commands/file_commands/commands.c
         include/commands.h
-        "src/tcp_ip_stack /tcp_ip.c"
 
 
 )

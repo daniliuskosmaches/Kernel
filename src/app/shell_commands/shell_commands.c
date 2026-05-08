@@ -8,6 +8,7 @@
 #include "../../../include/commands.h"
 
 
+extern void native_reboot(void);
 
 void help(const char* cmd) {
     if (cmd && cmd[0]) {
@@ -23,7 +24,10 @@ void help(const char* cmd) {
     terminal_write_string("sh - Show contents of current directory\n");
     terminal_write_string("at <dir> - Change directory\n");
     terminal_write_string("mk <name> - Create a file or directory\n");
-     terminal_write_string("rm <name> - Remove a file or directory\n");
+    terminal_write_string("rm <name> - Remove a file or directory\n");
+    terminal_write_string("reboot - Reboot the system\n");
+    terminal_write_string("ping - Test command (no real functionality yet)\n");
+
 
 }
 void clear(const char* cmd) {
@@ -39,19 +43,17 @@ void memspy(const char* cmd) {
     terminal_dump_memory(address, size);
 }
 void tasks(const char* cmd) {
-    // Здесь нужно реализовать вывод списка задач из твоего планировщика
-    terminal_write_string("Task listing not implemented yet.\n");
+
 }
 void uptime(const char* cmd) {
     // Здесь нужно реализовать вывод времени работы системы
     terminal_write_string("Uptime not implemented yet.\n");
 }
 void reboot(const char* cmd) {
-    // Здесь нужно реализовать перезагрузку системы
-    terminal_write_string("Reboot not implemented yet.\n");
+
+    native_reboot();
+
 }
-
-
 
 
 void ping(const char* cmd) {

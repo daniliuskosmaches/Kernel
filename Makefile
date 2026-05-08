@@ -20,7 +20,6 @@ ASM_SOURCES = $(shell find src -name "*.asm")
 # Превращаем пути src/xxx.c в obj/xxx.o
 OBJECTS = $(patsubst src/%.c, obj/%.o, $(C_SOURCES)) \
           $(patsubst src/%.asm, obj/%.o, $(ASM_SOURCES))
-
 LINKER_SCRIPT = linker.ld
 KERNEL_ELF    = kernel.elf
 KERNEL_BIN    = kernel.bin

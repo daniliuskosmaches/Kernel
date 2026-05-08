@@ -45,14 +45,6 @@ void shell_execute_command(char* cmd) {
     if (strncmp(cmd, "help", 4) == 0) {
         help(cmd + 4);
     }
-    if (strncmp(cmd, "shutdown", 8) == 0) {
-        shutdown(cmd);
-
-    }
-
-
-
-
 
     if (strncmp(cmd, "at ", 3) == 0) {       // Зайти в папку (вместо cd)
         cmd_at(cmd + 3);
@@ -81,6 +73,10 @@ void shell_execute_command(char* cmd) {
     }
     else if (strncmp(cmd, "reboot", 6) == 0) {
         reboot(cmd + 6);
+    }
+    else if (strncmp(cmd, "tasks", 7 )==0) {
+        tasks(cmd + 7);
+
     }
     else {
         terminal_write_string("Unknown: ");
